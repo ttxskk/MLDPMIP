@@ -1,12 +1,13 @@
-import * as THREE from 'https://unpkg.com/three@0.148.0/build/three.module.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.148.0/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/OrbitControls.js';
-import { DragControls  } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/DragControls.js';
-import WebGL from 'https://unpkg.com/three@0.148.0/examples/jsm/capabilities/WebGL.js';
-import { GUI } from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/lil-gui.module.min.js';
-import Stats from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/stats.module.js';
-import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
-import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
+import * as THREE from './three_js/three.module.js';
+import * as three from './three_js/three.module.js';
+import { GLTFLoader } from './three_js/GLTFLoader.js';
+import { OrbitControls } from './three_js/OrbitControls.js';
+import { DragControls  } from './three_js/DragControls.js';
+import WebGL from './three_js/WebGL.js';
+import { GUI } from './three_js/lil-gui.module.min.js';
+import Stats from './three_js/stats.module.js';
+// import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
+import { StereoEffect } from './three_js/StereoEffect.js';
 
 if (WebGL.isWebGLAvailable() === false)
   document.body.appendChild(WebGL.getWebGLErrorMessage());

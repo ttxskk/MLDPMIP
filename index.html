@@ -1552,6 +1552,15 @@
     <script src="shader_js/genbasis_shader_mldp.js"></script>
     <script src="shader_js/genbasis_shader_mldps.js"></script>
     <script src="shader_js/drawmldptex_shader.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+          "three/addons/": "./node_modules/three/examples/jsm/"
+          }
+      }
+    </script>
+    <script type="module" src="./index.js"></script>
 
   </body>
 </html>

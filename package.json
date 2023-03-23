@@ -1,0 +1,23 @@
+{
+  "name": "csm_multiple_lightac",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ttxskk/MLDPMIP.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ttxskk/MLDPMIP/issues"
+  },
+  "homepage": "https://github.com/ttxskk/MLDPMIP#readme",
+  "dependencies": {
+    "http-server": "^14.1.1",
+    "three": "^0.150.1"
+  }
+}

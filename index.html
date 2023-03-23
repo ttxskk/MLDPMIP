@@ -34,14 +34,6 @@
     <div id="container"></div>
     <div id="info"> MLDP demo </div>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "./node_modules/three/build/three.module.js",
-          "three/addons/": "./node_modules/three/examples/jsm/"
-          }
-      }
-    </script>
     <script id="csm_dp_shader_vs" type="x-shader/x-vertex">
       out vec3 bv;
       out vec2 bt;
@@ -1556,7 +1548,7 @@
       {
         "imports": {
           "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
-          "three/addons/": "./node_modules/three/examples/jsm/"
+          "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm"
           }
       }
     </script>

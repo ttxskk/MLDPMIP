@@ -12,7 +12,6 @@ if (WebGL.isWebGLAvailable() === false)
   document.body.appendChild(WebGL.getWebGLErrorMessage());
 document.onselectstart = new Function('return false;');
 
-
 var container, gui, stats, renderer;
 var vrrender;
 var isVr = false; 
@@ -23,18 +22,16 @@ var beizer_length = 0;
 var beizer_t = 0;
 
 var state_api = { state: 'Walking' };
-
-
-var map_select = ['Seamless DP Map', 'Cubemap', 'Multiple DP map','Multiple CM map'];
+var map_select = ['Seamless DP Map', 'Cubemap', 'Multiple DP map','Multiple CM map', 'Env. map approximation (DPMAP)'];
 var map_select_api = { map_type: 'Seamless DP Map' };
 var maptype = 0;
-
+//var map_select_api = { map_type: 'Multiple DP map' };
+//var maptype = 3;
 
 var settings;
 
 var cm_camera, cm_face_mat, cm_screen_mat, cm_rt, cm_texid;
 var cameraRTT, materialRTT, materialScreen, texdp_rt_id, texdp_id;
-
 
 var cameraScreen, cameraScreen_controls;
 var screen_zmesh1, screen_zmesh2;
@@ -48,7 +45,6 @@ var zNear = 0.3;
 var zFar = Math.sqrt(12.0);
 var shadow_a = 25.0;
 var shadow_b = 20.0;
-
 
 var cm_side = 512;
 var dp_side = 886;
@@ -65,33 +61,29 @@ var draw_tex_id = 1;
 var draw_mldptex_id = 1;
 var draw_layer_idx = 0;
 var draw_mlcmtex_id = 0;
+var draw_mlenvtex_id = 0;
 
 //var model;
 var modelforward0 = new THREE.Vector3(0, 0, 1);
 var modelforward = new THREE.Vector3(0, 0, 1);
 var actions, activeAction, previousAction;
-
 var model = new Array(), mixer = new Array();
 var my_interval_id, face, num_of_display_robot=1;
-
 
 var my_dot;
 var lineA;
 
 //multiple light
-var ml_light = new Array();
 var light1, light2;
 var Max_num_light = 16; 
-//var number_display_light = 3;
-
 var n_light = 3;
 
-//var ml_lpos = new Array(n_light);
-//var ml_lsize = new Array(n_light);
-//var ml_zFar = new Array(n_light);
+var ml_light = new Array();
 var ml_lpos = new Array(Max_num_light);
 var ml_lsize = new Array(Max_num_light);
 var ml_zFar = new Array(Max_num_light);
+var mldp_le = new Array(Max_num_light);
+
 //dp map
 var mldp_fbo, mldp_rbo;
 var mldp_cameraRTT, mldp_RTT, mldp_Screen, mltexdp_rt_id, mltexdp_id;
@@ -101,18 +93,32 @@ var mlcm_fbo, mlcm_rbo;
 var mlcm_camera, mlcm_face_mat, mlcm_Screen, mltexcm_rt, mltexcm;
 
 
+//Env. map approximation
+var NENV_light = 8;//16
+var useEnvMap = true;
+
+var env_light = new Array();
+var tmplpos = new Array(NENV_light);
+var tmpzFar = new Array(NENV_light);
+var tmpls = new Array(NENV_light);
+var tmple = new Array(NENV_light);
+
+var mlenvdp_fbo, mlenvdp_rbo;
+var mlenvdp_cameraRTT, mlenvdp_RTT, mlenvdp_Screen, mlenv_texdp_rt_id, mlenv_texdp_id;
+var mlenv_texdp_rt_s_id, mlenv_texdp_s_id, draw_env_texture;  //draw_texture indeed stores the depth map and basis maps.
+
 function onWindowResize() {
   cameraScreen.aspect = window.innerWidth / window.innerHeight;
   cameraScreen.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+
 function init() {
   window.addEventListener('resize', onWindowResize, false);
 
   //gui = new dat.GUI();
   gui = new GUI();
-
   stats = new Stats();
 
   renderer = new THREE.WebGLRenderer({ canvas: canvas, context: gl });
@@ -128,7 +134,110 @@ function init() {
   vrrender.setSize(window.innerWidth, window.innerHeight);
   vrrender.setEyeSeparation(0.6);
 
-  //--------------------------------------------------------------------
+
+  //tmplpos[0] = new THREE.Vector3(0.865789, 0.465361, -0.183980);
+  //tmpzFar[0] = 2.651464;
+  //tmpls[0] = 0.062500;
+  //tmple[0] = new THREE.Vector3(426.568085, 375.457275, 343.624756);
+  //tmplpos[1] = new THREE.Vector3(1.000000, 0.000000, 0.000000);
+  //tmpzFar[1] = 2.449490;
+  //tmpls[1] = 0.202000;
+  //tmple[1] = new THREE.Vector3(470.524536, 352.222137, 326.226166);
+  //tmplpos[2] = new THREE.Vector3(-0.719583, 0.665614, -0.197885);
+  //tmpzFar[2] = 2.676969;
+  //tmpls[2] = 0.075000;
+  //tmple[2] = new THREE.Vector3(237.708755, 210.868988, 176.271393);
+  //tmplpos[3] = new THREE.Vector3(-1.000000, 0.000000, 0.000000);
+  //tmpzFar[3] = 2.449490;
+  //tmpls[3] = 0.202000;
+  //tmple[3] = new THREE.Vector3(366.043304, 298.833801, 315.169556);
+  //tmplpos[4] = new THREE.Vector3(0.024098, 0.963925, 0.265079);
+  //tmpzFar[4] = 2.550727;
+  //tmpls[4] = 0.050000;
+  //tmple[4] = new THREE.Vector3(1015.175232, 754.998108, 563.614197);
+  //tmplpos[5] = new THREE.Vector3(0.048450, 0.775203, 0.629852);
+  //tmpzFar[5] = 2.628119;
+  //tmpls[5] = 0.062500;
+  //tmple[5] = new THREE.Vector3(936.379944, 644.872986, 472.351654);
+  //tmplpos[6] = new THREE.Vector3(0.033013, 0.880344, 0.473185);
+  //tmpzFar[6] = 2.602515;
+  //tmpls[6] = 0.062500;
+  //tmple[6] = new THREE.Vector3(662.596069, 432.765594, 293.235077);
+  //tmplpos[7] = new THREE.Vector3(-0.466085, 0.847427, -0.254228);
+  //tmpzFar[7] = 2.671232;
+  //tmpls[7] = 0.050000;
+  //tmple[7] = new THREE.Vector3(522.503662, 363.836609, 277.767700);
+  //tmplpos[8] = new THREE.Vector3(0.486375, 0.827872, -0.279407);
+  //tmpzFar[8] = 2.680915;
+  //tmpls[8] = 0.062500;
+  //tmple[8] = new THREE.Vector3(321.672516, 294.314056, 208.201035);
+  //tmplpos[9] = new THREE.Vector3(0.608229, 0.760286, -0.228086);
+  //tmpzFar[9] = 2.682014;
+  //tmpls[9] = 0.100000;
+  //tmple[9] = new THREE.Vector3(441.740173, 333.743805, 218.205460);
+  //tmplpos[10] = new THREE.Vector3(0.000000, 1.000000, 0.000000);
+  //tmpzFar[10] = 2.449490;
+  //tmpls[10] = 0.202000;
+  //tmple[10] = new THREE.Vector3(340.018829, 238.373047, 202.668304);
+  //tmplpos[11] = new THREE.Vector3(0.000000, -1.000000, 0.000000);
+  //tmpzFar[11] = 2.449490;
+  //tmpls[11] = 0.202000;
+  //tmple[11] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
+  //tmplpos[12] = new THREE.Vector3(0.046119, 0.673333, 0.737899);
+  //tmpzFar[12] = 2.629582;
+  //tmpls[12] = 0.062500;
+  //tmple[12] = new THREE.Vector3(317.720673, 229.898941, 171.150620);
+  //tmplpos[13] = new THREE.Vector3(0.050237, 0.592793, 0.803787);
+  //tmpzFar[13] = 2.625573;
+  //tmpls[13] = 0.062500;
+  //tmple[13] = new THREE.Vector3(228.309174, 162.203094, 119.334084);
+  //tmplpos[14] = new THREE.Vector3(0.000000, 0.000000, 1.000000);
+  //tmpzFar[14] = 2.449490;
+  //tmpls[14] = 0.202000;
+  //tmple[14] = new THREE.Vector3(237.703125, 158.103622, 138.044632);
+  //tmplpos[15] = new THREE.Vector3(0.000000, 0.000000, -1.000000);
+  //tmpzFar[15] = 2.449490;
+  //tmpls[15] = 0.202000;
+  //tmple[15] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
+
+  // 8 omni. light sources for env. map lighting
+  tmplpos[0] = new THREE.Vector3(1.000000, 0.000000, 0.000000);
+  tmpzFar[0] = 2.449490;
+  tmpls[0] = 0.202000;
+  tmple[0] = new THREE.Vector3(653.766846, 500.968536, 463.145081);
+  tmplpos[1] = new THREE.Vector3(-1.000000, 0.000000, 0.000000);
+  tmpzFar[1] = 2.449490;
+  tmpls[1] = 0.202000;
+  tmple[1] = new THREE.Vector3(435.257538, 358.090302, 370.116486);
+  tmplpos[2] = new THREE.Vector3(0.024098, 0.963925, 0.265079);
+  tmpzFar[2] = 2.550727;
+  tmpls[2] = 0.075000;
+  tmple[2] = new THREE.Vector3(1013.427795, 751.373474, 561.850891);
+  tmplpos[3] = new THREE.Vector3(0.038540, 0.770800, 0.635910);
+  tmpzFar[3] = 2.624976;
+  tmpls[3] = 0.075000;
+  tmple[3] = new THREE.Vector3(934.985596, 643.564941, 473.207184);
+  tmplpos[4] = new THREE.Vector3(0.000000, 1.000000, 0.000000);
+  tmpzFar[4] = 2.449490;
+  tmpls[4] = 0.202000;
+  tmple[4] = new THREE.Vector3(1049.918091, 744.753113, 594.493042);
+  tmplpos[5] = new THREE.Vector3(0.000000, -1.000000, 0.000000);
+  tmpzFar[5] = 2.449490;
+  tmpls[5] = 0.202000;
+  tmple[5] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
+  tmplpos[6] = new THREE.Vector3(0.000000, 0.000000, 1.000000);
+  tmpzFar[6] = 2.449490;
+  tmpls[6] = 0.202000;
+  tmple[6] = new THREE.Vector3(459.423737, 310.439880, 262.451355);
+  tmplpos[7] = new THREE.Vector3(0.000000, 0.000000, -1.000000);
+  tmpzFar[7] = 2.449490;
+  tmpls[7] = 0.202000;
+  tmple[7] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
+
+
+
+
+   //--------------------------------------------------------------------
   //single light cube map
   //--------------------------------------------------------------------
   cm_camera = new THREE.OrthographicCamera(-100, 100, -100, 100, -100, 100);
@@ -234,13 +343,12 @@ function init() {
     });
   //--------------------------------------------------------------------
 
-  var nn = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
-  console.log(nn);
+  //var nn = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+  //console.log(nn);
+
   //--------------------------------------------------------------------
   //multiple light - dp map
   //--------------------------------------------------------------------
-  //mltexdp_id = new Array(n_light);
-  //mltexdp_rt_id = new Array(n_light);
   mltexdp_id = new Array(Max_num_light);
   mltexdp_rt_id = new Array(Max_num_light);
   var i, j;
@@ -258,8 +366,6 @@ function init() {
     mltexdp_id[i].needsUpdate = true;
   }
 
-  //mltexdp_rt_s_id = new Array(n_light*2);
-  //mltexdp_s_id = new Array(n_light*2); 
   mltexdp_rt_s_id = new Array(Max_num_light*2);
   mltexdp_s_id = new Array(Max_num_light*2); 
   for (i = 0; i < Max_num_light * 2; i++) {
@@ -300,7 +406,8 @@ function init() {
   });
 
   var tmplmv = new Array(Max_num_light);
-  for (var i = 0; i < Max_num_light; i++) {
+ 
+ for (var i = 0; i < Max_num_light; i++) {
     ml_lpos[i] = new THREE.Vector3();
     ml_lsize[i] = lightsize;
     ml_zFar[i] = zFar;
@@ -326,8 +433,7 @@ function init() {
           mltexdp_rt_id[12].texture, mltexdp_rt_id[13].texture, mltexdp_rt_id[14].texture,
           mltexdp_rt_id[15].texture
         ]
-      }, //draw_texture[0]]},
-      //lightmv: { value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()] }
+      }, 
       lightmv: {
         value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
           new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
@@ -340,10 +446,6 @@ function init() {
     fragmentShader: document.getElementById('csm_mldp_shader_fs').textContent
   });
 
-  //for (var k = 0; k < Max_num_light; k++) {
-  //  mldp_Screen.uniforms.mldpmap.value[k] = mltexdp_rt_id[k].texture;
-  //  mldp_Screen.uniforms.lightmv.value[k] = new THREE.Matrix4();
-  //}
   mldp_Screen.needsUpdate = true;
 
 
@@ -354,13 +456,12 @@ function init() {
   //--------------------------------------------------------------------
   //multiple light cubemap
   //--------------------------------------------------------------------
-  //var mlcm_fbo, mlcm_rbo;
-  //mltexcm_rt = new Array(n_light * (M + 1));
-  //mltexcm = new Array(n_light * (M + 1));
-  mltexcm_rt = new Array(Max_num_light * (M + 1));
-  mltexcm = new Array(Max_num_light * (M + 1));
+  //mltexcm_rt = new Array(Max_num_light * (M + 1));
+  //mltexcm = new Array(Max_num_light * (M + 1));
+  mltexcm_rt = new Array(3 * (M + 1));
+  mltexcm = new Array(3 * (M + 1));
 
-  for (i = 0; i < Max_num_light * (M + 1); i++) {
+  for (i = 0; i < 3 * (M + 1); i++) {
     mltexcm_rt[i] = new THREE.WebGLCubeRenderTarget(cm_side, cm_side, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
     for (j = 0; j < 6; j++)
       renderer.setRenderTarget(mltexcm_rt[i], j);
@@ -387,6 +488,7 @@ function init() {
       l: { value: ml_lpos },
       mlcm_zFar: { value: ml_zFar },
       lsize: { value: ml_lsize },
+      ndis_light: { value: n_light },
       cmmap: {
         value: [mltexcm_rt[0].texture, mltexcm_rt[1].texture, mltexcm_rt[2].texture, mltexcm_rt[3].texture, mltexcm_rt[4].texture,
           mltexcm_rt[5].texture, mltexcm_rt[6].texture, mltexcm_rt[7].texture, mltexcm_rt[8].texture, mltexcm_rt[9].texture,
@@ -400,7 +502,93 @@ function init() {
   });
   //--------------------------------------------------------------------
 
+  //--------------------------------------------------------------------
+  //multiple light for env map - dp map
+  //--------------------------------------------------------------------
+  mlenv_texdp_id = new Array(NENV_light);
+  mlenv_texdp_rt_id = new Array(NENV_light);
+  var i, j;
+  for (i = 0; i < NENV_light ; i++)
+  {
+    mlenv_texdp_rt_id[i] = new THREE.WebGLArrayRenderTarget(dp_side, dp_side, 2 * (M + 1));
+    mlenv_texdp_rt_id[i].texture.format = THREE.RGBAFormat;
+    mlenv_texdp_rt_id[i].texture.minFilter = THREE.LinearFilter;
+    mlenv_texdp_rt_id[i].texture.magFilter = THREE.LinearFilter;
 
+    for (j = 0; j < 2 * (M + 1); j++)
+      renderer.setRenderTarget(mlenv_texdp_rt_id[i], j);
+
+    mlenv_texdp_id[i] = renderer.properties.get(mlenv_texdp_rt_id[i].texture).__webglTexture;
+    mlenv_texdp_id[i].needsUpdate = true;
+  }
+
+  mlenv_texdp_rt_s_id = new Array(NENV_light * 2);
+  mlenv_texdp_s_id = new Array(NENV_light*2); 
+  for (i = 0; i < NENV_light * 2; i++) {
+    mlenv_texdp_rt_s_id[i] = new THREE.WebGLRenderTarget(dp_side, dp_side, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+    renderer.setRenderTarget(mlenv_texdp_rt_s_id[i]);
+    mlenv_texdp_s_id[i] = renderer.properties.get(mlenv_texdp_rt_s_id[i].texture).__webglTexture;
+  }
+
+  draw_env_texture = new Array(NENV_light);
+  for (var k = 0; k < NENV_light; k++) {
+    draw_env_texture[k] = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, draw_env_texture[k]);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texImage3D(
+      gl.TEXTURE_2D_ARRAY,
+      0, 
+      gl.RGBA,
+      dp_side, dp_side,
+      2 * (M + 1),
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      null
+    );
+  }
+
+  mlenvdp_cameraRTT = new THREE.OrthographicCamera(-100, 100, -100, 100, -100, 100);
+  mlenvdp_RTT = new THREE.ShaderMaterial({
+    uniforms: {
+      mvp: { value: new THREE.Matrix4() },
+      zFar: { value: Math.sqrt(12.0) },        //error
+      l: { value: new THREE.Vector3(0, 0, 0) }
+    },
+    vertexShader: document.getElementById('mldp_shader_vs').textContent,
+    fragmentShader: document.getElementById('mldp_shader_fs').textContent,
+  });
+
+        
+  mlenvdp_Screen = new THREE.ShaderMaterial({
+    uniforms: {
+      eye: { value: new THREE.Vector3() },
+      zNear: { value: zNear },
+      shadow_a: { value: shadow_a },
+      shadow_b: { value: shadow_b },
+      l: { value: tmplpos },
+      light_intensity: { value: tmple },
+      mlenvdp_zFar: { value: tmpzFar },
+      lsize: { value: tmpls },
+      mlenv_dpmap: {
+        value: [       
+          mlenv_texdp_rt_id[0].texture, mlenv_texdp_rt_id[1].texture, mlenv_texdp_rt_id[2].texture,
+          mlenv_texdp_rt_id[3].texture, mlenv_texdp_rt_id[4].texture, mlenv_texdp_rt_id[5].texture,
+          mlenv_texdp_rt_id[6].texture, mlenv_texdp_rt_id[7].texture
+        ]
+      },
+      lightmv: {
+        value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
+          new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
+        ]
+      }
+    },
+    vertexShader: document.getElementById('csm_mlenvdp_shader_vs').textContent,
+    fragmentShader: document.getElementById('csm_mlenvdp_shader_fs').textContent
+  });
+  mlenvdp_Screen.needsUpdate = true;
+  //--------------------------------------------------------------------
 
   my_quad = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1,]);
   my_quad.n = 6;
@@ -409,21 +597,18 @@ function init() {
   {
     var rt_geometry = new THREE.TorusGeometry( 0.2, 0.04, 64, 32 );
     screen_zmesh1 = new THREE.Mesh(rt_geometry, materialScreen);
-    //screen_zmesh1 = new THREE.Mesh(rt_geometry, mldp_Screen);
     screen_zmesh1.position.set(0, .25, 0);
     screen_zmesh1.scale.set(1, 1, 1);
     screen_zmesh1.rotation.y = 0;
     screen_zmesh2 = new THREE.Mesh(rt_geometry, materialScreen);
-    //screen_zmesh2 = new THREE.Mesh(rt_geometry, mldp_Screen);
     screen_zmesh2.position.set(0, .5, 0);
     screen_zmesh2.scale.set(0.75, 0.75, 0.75);
     screen_zmesh2.rotation.y = Math.PI / 2;
 
     screen_mesh = new THREE.Mesh(new THREE.PlaneGeometry(20, 20, 100, 100), materialScreen);
-    //screen_mesh = new THREE.Mesh(new THREE.PlaneGeometry(20, 20, 100, 100), mldp_Screen);
     screen_mesh.rotation.x = -Math.PI / 2;
 
-    grid = new THREE.GridHelper(20, 100, 0x000000, 0x000000);
+    grid = new THREE.GridHelper(20, 100, 0xffffff, 0xffffff);
     grid.position.set(0, .002, 0);
     grid.material.opacity = 0.2;
     grid.material.transparent = true;
@@ -453,7 +638,6 @@ function init() {
     light2.scale.set(lightsize, lightsize, lightsize);
     ml_light.push(light2);
     ml_lpos[2] = new THREE.Vector3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
-
   }
 
   sceneScreen = new THREE.Scene();
@@ -471,11 +655,8 @@ function init() {
   for (i = 3; i < Max_num_light; i++) {
     var tl = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xDDDDDD }));
     var x = THREE.MathUtils.randFloat(0.0, 1.0);//0.1, 0.7);
-    var y = 0.9;//THREE.MathUtils.randFloat(0.5, 0.9);
+    var y = 0.9;
     var z =  THREE.MathUtils.randFloat(0.0, 1.0);//0.5, 0.9);
-    //console.log(x);
-    //console.log(y);
-    //console.log(z);
 
     tl.position.set(x, y, z);
     tl.scale.set(lightsize, lightsize, lightsize);
@@ -487,6 +668,15 @@ function init() {
   }
 
 
+  // Add env map approximated light sources
+  for (var j = 0; j < NENV_light; j++) {
+    var geometry = new THREE.SphereGeometry(1, 20, 20);
+    var tmpe = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xDC143C }));
+    tmpe.position.set(tmplpos[j].x, tmplpos[j].y, tmplpos[j].z);
+    tmpe.scale.set(tmpls[j], tmpls[j], tmpls[j]);
+    env_light.push(tmpe);
+    sceneScreen.add(tmpe);
+  }
 
 
   var objects = [];
@@ -495,7 +685,6 @@ function init() {
   objects.push(light2);
   for (var i = 0; i < Max_num_light; i++)
     objects.push(ml_light[i]);
-
   
   var dragControls = new DragControls(objects, cameraScreen, renderer.domElement);
   dragControls.addEventListener('dragstart', function () {
@@ -528,15 +717,103 @@ function init() {
   for( i=0; i<32; i++ )
   {
     var loader = new GLTFLoader();
-    loader.load('./models/gltf/RobotExpressive/RobotExpressive.glb', function (gltf)
+    loader.load('models/gltf/RobotExpressive/RobotExpressive.glb', function (gltf)
     {
-      var tmp = gltf.scene;
+      var tmp = gltf.scene;//.children[ 0 ];
       model.push(tmp);
       tmp.scale.set(.1, .1, .1);
       tmp.translateOnAxis(modelforward, .3);
  
-      tmp.position.set(1, 0, -(model.length-1)*tile_length*2);
-  
+      tmp.position.set(1, 0, -(model.length - 1) * tile_length * 2);
+
+      // new added, for modifing the model vertex
+      tmp.traverse((child)=>
+      {
+        if( child.isMesh )
+        {
+          child.material.flatShading = false;
+          child.geometry.computeVertexNormals();
+
+        //  child.material.onBeforeCompile = function(shader)
+        //  {
+        //    shader.uniforms.testp = {
+        //      value: new THREE.Vector3(1.0, 0.0, 0.5),
+        //    };
+        //    shader.uniforms.lpos = {
+        //      value: [
+        //        new THREE.Vector3(ml_light[0].position.x, ml_light[0].position.y, ml_light[0].position.z),
+        //        new THREE.Vector3(ml_light[1].position.x, ml_light[1].position.y, ml_light[1].position.z),
+        //      new THREE.Vector3(ml_light[2].position.x, ml_light[2].position.y, ml_light[2].position.z),]
+        //    };
+
+        //    shader.vertexShader = shader.vertexShader.replace( 
+        //                             '\nvoid main()',
+        //      //'\n' + my_vertex_func + '\nvoid main()'
+        //      '\n'+ csm_mldp_vertex_input + '\nvoid main()'
+        //    );
+        //    var vs_insert_pos = shader.vertexShader.lastIndexOf('}');
+        //    shader.vertexShader = 
+        //      shader.vertexShader.substring(0,vs_insert_pos) +'\n'+
+        //        csm_mldp_vertex_output +
+        //      '\n'+ shader.vertexShader.substring(vs_insert_pos);
+
+        //    shader.vertexShader = shader.vertexShader.replace(
+        //      "#include <common>",
+        //      `#include <common>
+        //      varying vec3 testl;`
+        //    );
+        //    shader.vertexShader = shader.vertexShader.replace(
+        //      "#include <fog_vertex>",
+        //      `#include <fog_vertex>
+        //       testl = vec3(1.0, 1.0, 0.0);`
+        //    );
+        //    //console.log(shader.vertexShader);
+
+
+        //    shader.fragmentShader = shader.fragmentShader.replace( 
+        //                               '\nvoid main()',
+        //      //'\n'+ my_fragment_func + '\nvoid main()'
+        //      '\n'+ csm_mldp_fragment_input + '\nvoid main()'
+        //    );
+
+        //    var fs_insert_pos = shader.fragmentShader.lastIndexOf('}');
+        //    shader.fragmentShader = 
+        //      shader.fragmentShader.substring(0,fs_insert_pos) +'\n'+
+        //        csm_mldp_fragment_output + 
+        //      '\n' + shader.fragmentShader.substring(fs_insert_pos);
+
+        //    shader.fragmentShader = shader.fragmentShader.replace(
+        //      "#include <common>",
+
+        //      //`#include <common>
+        //      //uniform vec3 testp;
+        //      //uniform vec3 lpos[3];
+        //      //varying vec3 testl;
+        //      //`
+        //      csm_mldp_frag_input
+        //    );
+
+        //    shader.fragmentShader = shader.fragmentShader.replace(
+        //      "#include <dithering_fragment>",
+
+        //      `#include <dithering_fragment>
+        //       int i;
+        //       vec3 acc = vec3(0.0);
+        //       for(i=0; i<3; i++)
+        //       {
+        //       acc += lpos[i];
+        //       }
+
+        //       gl_FragColor = vec4(lpos[0], 1.0);`
+        //    );
+
+
+
+        //    console.log(shader.fragmentShader);
+        //  };
+        }
+      });
+
       sceneScreen.add(tmp);
 
       var tmp_mixer = new THREE.AnimationMixer(tmp);
@@ -564,13 +841,11 @@ function init() {
 }
 actions = {};
 var states = ['Idle', 'Walking', 'Running', 'Dance', 'Death', 'Sitting', 'Standing'];
-//var emotes = ['Jump', 'Yes', 'No', 'Wave', 'Punch', 'ThumbsUp'];
-//var beizer_t_running = false;
 
 // initial
 //var mixer;
 function createGUI(model, animations) {
-       face = model.getObjectByName( 'Head_2' );
+   face = model.getObjectByName( 'Head_2' );
 
   for (var i = 0; i < animations.length; i++) {
     var clip = animations[i];
@@ -585,17 +860,9 @@ function createGUI(model, animations) {
 
   activeAction = actions['Walking'];
   activeAction.play();
-      face.morphTargetInfluences[0] = 0;
-      face.morphTargetInfluences[1] = 1;
-      face.morphTargetInfluences[2] = 0;
-
-  // states
-  //var statesFolder = gui.addFolder('States');
-  //var states_clipCtrl = statesFolder.add(state_api, 'state').options(states);
-  //states_clipCtrl.onChange(function () {
-
-  //});
-  //statesFolder.open();
+  face.morphTargetInfluences[0] = 0;
+  face.morphTargetInfluences[1] = 1;
+  face.morphTargetInfluences[2] = 0;
 
 
   // map selection
@@ -607,7 +874,9 @@ function createGUI(model, animations) {
       screen_zmesh1.material = materialScreen;
       screen_zmesh2.material = materialScreen;
       screen_mesh.material = materialScreen;
-    }
+      screen_mesh.scale.set(1.0, 1.0, 1.0);
+      //grid.scale.set(1.0, 1.0, 1.0);
+   }
     if (val == "DP map") {
       maptype = 1;
     }
@@ -616,13 +885,17 @@ function createGUI(model, animations) {
       screen_zmesh1.material = cm_screen_mat;
       screen_zmesh2.material = cm_screen_mat;
       screen_mesh.material = cm_screen_mat;
-    }
+      screen_mesh.scale.set(1.0, 1.0, 1.0);
+      //grid.scale.set(1.0, 1.0, 1.0);
+   }
 
     if (val == "Multiple DP map") {
       maptype = 3;
       screen_zmesh1.material = mldp_Screen;
       screen_zmesh2.material = mldp_Screen;
       screen_mesh.material   = mldp_Screen;
+      screen_mesh.scale.set(1.0, 1.0, 1.0);
+      //grid.scale.set(1.0, 1.0, 1.0);
     }
 
     if (val == "Multiple CM map") {
@@ -630,6 +903,17 @@ function createGUI(model, animations) {
       screen_zmesh1.material = mlcm_Screen;
       screen_zmesh2.material = mlcm_Screen;
       screen_mesh.material = mlcm_Screen;
+      screen_mesh.scale.set(1.0, 1.0, 1.0);
+      //grid.scale.set(1.0, 1.0, 1.0);
+    }
+
+    if (val == "Env. map approximation (DPMAP)") {
+      maptype = 5;
+      screen_zmesh1.material = mlenvdp_Screen;
+      screen_zmesh2.material = mlenvdp_Screen;
+      screen_mesh.material = mlenvdp_Screen;
+      screen_mesh.scale.set(0.25, 0.25, 0.25);
+      //grid.scale.set(0.25, 0.25, 0.25);
     }
 
   });
@@ -637,13 +921,14 @@ function createGUI(model, animations) {
 
 
   settings = {
-    'lightsize': lightsize,
-    'Tiles/Second': tiles_per_second,
-    'tex_id': draw_tex_id,
-    'time_scale': time_scale,
     'full screen': 0,
+    'Tiles/Second': tiles_per_second,
+    'time_scale': time_scale,
+    'lightsize': lightsize,
+    'tex_id': draw_tex_id,
     'draw_mlcmtex_id': draw_mlcmtex_id,
     'draw_mldptex_id': draw_mldptex_id,
+    'draw_mlenvtex_id': draw_mlenvtex_id,
     'layer_idx': draw_layer_idx,
     'robot number': num_of_display_robot,
     'light number':n_light,
@@ -665,8 +950,9 @@ function createGUI(model, animations) {
     });
   expressionFolder.add(settings, 'light number', 1, 16, 1).onChange(
     function (val) {
-      //number_display_light = val;
-      n_light = val;
+      if (maptype == 3) {
+        n_light = val;
+      }
       if (maptype == 4) {
         if (val < 4)
           n_light = val;
@@ -675,33 +961,20 @@ function createGUI(model, animations) {
       }
     });
    
-
   expressionFolder.add(settings, 'lightsize', 0.02, .2, .001).onChange(
     function (val) {
       lightsize = val;
       light_sphere.scale.set(lightsize, lightsize, lightsize);
       light1.scale.set(lightsize, lightsize, lightsize);
       light2.scale.set(lightsize, lightsize, lightsize);
-   for (i = 3; i < Max_num_light; i++) {
+
+      for (i = 3; i < Max_num_light; i++) {
         ml_light[i].scale.set(lightsize, lightsize, lightsize);
       }
-    });
-  expressionFolder.add(settings, 'Tiles/Second', 1, 10, .001).onChange(
-    function (val) {
-      tiles_per_second = val;
     });
   expressionFolder.add(settings, 'tex_id', -1, 4, 1).onChange(
     function (val) {
       draw_tex_id = val;
-    });
-  expressionFolder.add(settings, 'time_scale', 1, 100, 1).onChange(
-    function (val) {
-      time_scale = val;
-      clearInterval(my_interval_id);
-    });
-  expressionFolder.add(settings, 'layer_idx', -1, 4, 1).onChange(
-    function (val) {
-      draw_layer_idx = val;
     });
   expressionFolder.add(settings, 'draw_mlcmtex_id', -1, 14, 1).onChange(
     function (val) {
@@ -709,12 +982,29 @@ function createGUI(model, animations) {
     });
   expressionFolder.add(settings, 'draw_mldptex_id', -1, 16, 1).onChange(
     function (val) {
-      if (val < n_light)//number_display_light)
-        draw_mldptex_id = val;//*(M+1);
+      if (val < n_light)
+        draw_mldptex_id = val; 
       else
-        draw_mldptex_id = n_light-1; //draw_mldptex_id = number_display_light-1;//*(M+1);
+        draw_mldptex_id = n_light-1; 
+    });
+  expressionFolder.add(settings, 'draw_mlenvtex_id', -1, 7, 1).onChange(
+    function (val) {
+        draw_mlenvtex_id = val; 
+    });
 
-  });
+  expressionFolder.add(settings, 'layer_idx', -1, 4, 1).onChange(
+    function (val) {
+      draw_layer_idx = val;
+    });
+  expressionFolder.add(settings, 'Tiles/Second', 1, 10, .001).onChange(
+    function (val) {
+      tiles_per_second = val;
+    });
+  expressionFolder.add(settings, 'time_scale', 1, 100, 1).onChange(
+    function (val) {
+      time_scale = val;
+      clearInterval(my_interval_id);
+    });
     
    expressionFolder.add(settings, 'use vr', 0, 1, 1).onChange(
     function (val) {
@@ -752,16 +1042,22 @@ function animate(dt, time_scale,lineA) {
   for( var i=num_of_display_robot; i<model.length; i++ )
     model[i].visible = false;
 
+  if (maptype == 3 || maptype == 4) {
+    for (var i = 1; i < n_light; i++)
+      ml_light[i].visible = true;
+    for (var i = n_light; i < ml_light.length; i++)
+      ml_light[i].visible = false;
+  } else if (maptype == 0 || maptype == 1 || maptype == 2) {
+    for (var i = 1; i < ml_light.length; i++)
+      ml_light[i].visible = false;
 
-  //for (var i = 1; i < number_display_light; i++)
-  //  ml_light[i].visible = true;
-  //for( var i=number_display_light; i<ml_light.length; i++ )
-  //  ml_light[i].visible = false;
-  for (var i = 1; i < n_light; i++)
-    ml_light[i].visible = true;
-  for( var i=n_light; i<ml_light.length; i++ )
-    ml_light[i].visible = false;
+  } else {
+    for (var i = 0; i < ml_light.length; i++)
+      ml_light[i].visible = false;
+  }
 
+  for (var i = 0; i < NENV_light; i++)
+    env_light[i].visible = false;   //true; //
 
   var nrobot = Math.min(num_of_display_robot,model.length);
   for( var i=1; i<nrobot; i++ )
@@ -796,6 +1092,7 @@ prepare_cmfbo(cm_side);
 //multiple light
 prepare_mldpfbo(dp_side);
 prepare_mlcmfbo(cm_side);
+prepare_mlenvdpfbo(dp_side);
 animate();
 
 
@@ -821,6 +1118,18 @@ function prepare_mlcmfbo(cm_side) {
   gl.bindRenderbuffer(gl.RENDERBUFFER, mlcm_rbo);
   gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, cm_side, cm_side);
   gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, mlcm_rbo);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+function prepare_mlenvdpfbo(dp_side) {
+  mlenvdp_fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, mlenvdp_fbo);
+
+  mlenvdp_rbo = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, mlenvdp_rbo);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, dp_side, dp_side);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, mlenvdp_rbo);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
@@ -1228,6 +1537,65 @@ function genbasis_mlcmmap() {
   gl.viewport(port0[0], port0[1], port0[2], port0[3]);
 }
 
+
+function genbasis_mlenv_dpmap() {
+  var i, j;
+  var fbo0 = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  var port0 = gl.getParameter(gl.VIEWPORT);
+  var tex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+
+  var v0_enabled0 = gl.getVertexAttrib(genbasis_shader_mldps.v0, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
+  var t0_enabled0 = gl.getVertexAttrib(genbasis_shader_mldps.t0, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
+  gl.enableVertexAttribArray(genbasis_shader_mldps.v0);
+  gl.enableVertexAttribArray(genbasis_shader_mldps.t0);
+
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, mlenvdp_fbo);
+  gl.viewport(0, 0, dp_side, dp_side);
+
+  for (j = 0; j < NENV_light; j++) {
+    for (i = 0; i < 2; i++) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, mlenv_texdp_s_id[j * 2 + i]);
+      gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, mlenv_texdp_id[j], 0, i);
+      gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT1, mlenv_texdp_id[j], 0, i * M + 1 + 1);
+      gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT2, mlenv_texdp_id[j], 0, i * M + 1 + 2);
+      gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT3, mlenv_texdp_id[j], 0, i * M + 1 + 3);
+      gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT4, mlenv_texdp_id[j], 0, i * M + 1 + 4);
+
+
+      genbasis_shader_mldps.use();
+      gl.uniformMatrix4fv(genbasis_shader_mldps.mvp, false, m4.orthographic(0, 1, 0, 1, -1, 1));
+      gl.uniform1i(genbasis_shader_mldps.depthmap, 0);
+      gl.uniform1i(genbasis_shader_mldps.layeridx, i);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, my_quad_buffer);
+      gl.vertexAttribPointer(genbasis_shader_mldps.v0, 2, gl.FLOAT, false, 8, 0);
+      gl.vertexAttribPointer(genbasis_shader_mldps.t0, 2, gl.FLOAT, false, 8, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, my_quad.n);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3, gl.COLOR_ATTACHMENT4]);
+
+    }
+  }
+  for (i = 0; i < NENV_light; i++) {
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, mlenv_texdp_id[i]);
+    gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+  }
+
+  if (!v0_enabled0)
+    gl.disableVertexAttribArray(genbasis_shader_mldps.v0);
+  if (!t0_enabled0)
+    gl.disableVertexAttribArray(genbasis_shader_mldps.t0);
+
+  gl.bindTexture(gl.TEXTURE_2D, tex0);
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbo0);
+  gl.viewport(port0[0], port0[1], port0[2], port0[3]);
+}
+
+
 function cm_render(renderer) {
   var i;
   var l = new vec3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
@@ -1322,15 +1690,9 @@ function mldp_renderx(renderer)
   var i, j;
   for (i = 0; i < n_light; i++) {
     ml_lpos[i] = new THREE.Vector3(ml_light[i].position.x, ml_light[i].position.y, ml_light[i].position.z);
+    ml_zFar[i] = zFar;
   }
 
-  //ml_lpos[0] = new THREE.Vector3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
-  //ml_lpos[1] = new THREE.Vector3(light1.position.x, light1.position.y, light1.position.z);
-  //ml_lpos[2] = new THREE.Vector3(light2.position.x, light2.position.y, light2.position.z);
-
-  //ml_lpos[1] = new THREE.Vector3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
-  //ml_zFar[0] = zFar;
-  //ml_zFar[1] = zFar;
   for (j = 0; j < n_light; j++)
   {
     var eye = [new vec3(0.0, 0.0, -1.0),         new vec3(0.0, 0.0, 1.0)];
@@ -1390,6 +1752,8 @@ function mlcm_render(renderer) {
   ml_lpos[2] = new THREE.Vector3(light2.position.x, light2.position.y, light2.position.z);
 
   var i, j;
+  //console.log('mlcm_render ' + n_light);
+
   for (j = 0; j < n_light; j++) {
     var eye = [
       new vec3(1, 0, 0), new vec3(-1, 0, 0),
@@ -1401,7 +1765,7 @@ function mlcm_render(renderer) {
       new vec3(0, 0, 1), new vec3(0, 0, -1),
       new vec3(0, -1, 0), new vec3(0, -1, 0),
     ];
-    var l = new vec3(ml_lpos[j].x, ml_lpos[j].y, ml_lpos[j].z);
+    var l = new THREE.Vector3(ml_lpos[j].x, ml_lpos[j].y, ml_lpos[j].z);
 
     var mvp;
     mlcm_face_mat.uniforms["zFar"].value = zFar;
@@ -1428,31 +1792,56 @@ function mlcm_render(renderer) {
   renderer.setClearColor(prev_color, prev_apaha);
 }
 
+function mlenvdp_render(renderer) {
+  var i, j;
+  
+  for (j = 0; j < NENV_light; j++) {
+    var eye = [new vec3(0.0, 0.0, -1.0), new vec3(0.0, 0.0, 1.0)];
+    var up = [(new vec3(0.0, 1.0, 0.0)).neg(), (new vec3(0.0, 1.0, 0.0)).neg()];
+
+    var l = new vec3(tmplpos[j].x, tmplpos[j].y, tmplpos[j].z);
+    var mvp;
+    mlenvdp_RTT.uniforms["zFar"].value = tmpzFar[j];
+    mlenvdp_RTT.uniforms["l"].value.set(l.x, l.y, l.z);
+
+    var prev_color = new THREE.Color();
+      renderer.getClearColor(prev_color);
+    var prev_apaha = renderer.getClearAlpha();
+      renderer.setClearColor(new THREE.Color(1, 1, 1), 1.0);
+    var prev_background = sceneScreen.background;
+    var prev_fog = sceneScreen.fog;
+      sceneScreen.background = null;
+      sceneScreen.fog = null;
+
+    sceneScreen.overrideMaterial = mlenvdp_RTT;
+    for (i = 0; i < 2; i++) {
+      mvp = m4.lookAt([l.x, l.y, l.z], [eye[i].x + l.x, eye[i].y + l.y, eye[i].z + l.z], [up[i].x, up[i].y, up[i].z]);
+      mlenvdp_RTT.uniforms["mvp"].value.set(
+        mvp[0], mvp[4], mvp[8], mvp[12],
+        mvp[1], mvp[5], mvp[9], mvp[13],
+        mvp[2], mvp[6], mvp[10], mvp[14],
+        mvp[3], mvp[7], mvp[11], mvp[15]);
+
+      renderer.setRenderTarget(mlenv_texdp_rt_s_id[2 * j + i]);
+      renderer.clear();
+      renderer.render(sceneScreen, mlenvdp_cameraRTT);
+    }
+
+
+  }
+  sceneScreen.overrideMaterial = null;
+  sceneScreen.background = prev_background;
+  sceneScreen.fog = prev_fog;
+  renderer.setClearColor(prev_color, prev_apaha);
+}
+
+
+
 function renderX(dt, time_scale, lineA) {
   {
     var dtheta = 2 * Math.PI * dt * .6;
     screen_zmesh1.rotation.y -= dtheta;
     screen_zmesh2.rotation.y -= dtheta;
-
-  //  if (model) {
-  //    if (beizer_pos.length > 0) {
-  //      //console.log(beizer_length);
-  //      var beizer_dt = ((new Date()).getTime() - beizer_t0) / 1000 / beizer_length * tiles_per_second * tiles_length;
-  //      beizer_t0 = (new Date()).getTime();
-  //      beizer_t = g_clamp(beizer_t + beizer_dt, 0, 1);
-
-  //      my_dot.position.copy(beizer_pos[3]);
-  //      lineA.verticesNeedUpdate = true;
-  //      lineA.vertices[2].copy(beizer_direction(beizer_t));
-  //      modelforward.copy(beizer_direction(beizer_t));
-
-  //      var tmp = new THREE.Vector3();
-  //      tmp.copy(modelforward);
-  //      tmp.cross(modelforward0);
-  //      model.rotation.y = (tmp.y > 0 ? -1 : 1) * Math.acos(modelforward.dot(modelforward0));
-  //      model.position.copy(beizer(beizer_t));
-  //    }
-  //  }
 
     if (model[0]) {
       if (beizer_pos.length > 0) {
@@ -1468,8 +1857,6 @@ function renderX(dt, time_scale, lineA) {
         //}
 
         my_dot.position.copy(beizer_pos[3]);
-        //lineA.verticesNeedUpdate = true;
-        //lineA.vertices[2].copy(beizer_direction(beizer_t));
         modelforward.copy(beizer_direction(beizer_t));
 
         var tmp = new THREE.Vector3();
@@ -1498,11 +1885,15 @@ function renderX(dt, time_scale, lineA) {
     mlcm_render(renderer);
     genbasis_mlcmmap();
   }
-
+  if (maptype == 5) {
+    mlenvdp_render(renderer);
+    genbasis_mlenv_dpmap();
+  }
 
   var l = new vec3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
   renderer.setRenderTarget(null);
   renderer.clear();
+
   materialScreen.uniforms["l"].value.set(l.x, l.y, l.z);
   materialScreen.uniforms["eye"].value = cameraScreen.position;
   materialScreen.uniforms["lightsize"].value = lightsize;
@@ -1513,45 +1904,51 @@ function renderX(dt, time_scale, lineA) {
   cm_screen_mat.uniforms["lightsize"].value = lightsize;
   cm_screen_mat.uniforms["zFar"].value = zFar;
 
-  for (var k = 0; k < n_light; k++)
-  {
-    ml_lpos[k] = new THREE.Vector3(ml_light[k].position.x, ml_light[k].position.y, ml_light[k].position.z);
-    ml_lsize[k] = lightsize;
-    ml_zFar[k] = zFar;// 0.5;          
-  }
-
-
-  //ml_lpos[0] = new THREE.Vector3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
-  //ml_lpos[1] = new THREE.Vector3(light1.position.x, light1.position.y, light1.position.z);
-  //ml_lpos[2] = new THREE.Vector3(light2.position.x, light2.position.y, light2.position.z);
-  ////ml_lpos[1] = new THREE.Vector3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
-  //ml_lsize[0] = lightsize;
-  //ml_lsize[1] = lightsize;
-  //ml_lsize[2] = lightsize;
-  //ml_zFar[0] = zFar;// 0.5;
- // ml_zFar[1] = zFar;// 0.1;
- // ml_zFar[2] = zFar;// 0.1;
-
-  {
+  if (maptype == 3) {
+    for (var k = 0; k < n_light; k++) {
+      ml_lpos[k] = new THREE.Vector3(ml_light[k].position.x, ml_light[k].position.y, ml_light[k].position.z);
+      ml_lsize[k] = lightsize;
+      ml_zFar[k] = zFar;// 0.5;  
+    }
     for (var i = 0; i < n_light; i++) {
       mldp_Screen.uniforms.l.value[i].set(ml_lpos[i].x, ml_lpos[i].y, ml_lpos[i].z);
       mldp_Screen.uniforms.lsize.value[i] = lightsize;
       mldp_Screen.uniforms.mldp_zFar.value[i] = ml_zFar[i];
     }
+    mldp_Screen.uniforms["num_dis_light"].value = n_light;
+    mldp_Screen.uniforms["eye"].value = cameraScreen.position;
   }
 
-  mldp_Screen.uniforms["num_dis_light"].value = n_light;
-  mldp_Screen.uniforms["eye"].value = cameraScreen.position;
 
-
-  {
-    for (var i = 0; i < n_light; i++) {
-      mlcm_Screen.uniforms.l.value[i].set(ml_lpos[i].x, ml_lpos[i].y, ml_lpos[i].z);
-      mlcm_Screen.uniforms.lsize.value[i] = lightsize;
-      mlcm_Screen.uniforms.mlcm_zFar.value[i] = ml_zFar[i];
+  if (maptype == 4) {
+    for (var k = 0; k < n_light; k++) {
+      ml_lpos[k] = new THREE.Vector3(ml_light[k].position.x, ml_light[k].position.y, ml_light[k].position.z);
+      ml_lsize[k] = lightsize;
+      ml_zFar[k] = zFar;// 0.5;  
     }
-    mlcm_Screen.uniforms["eye"].value = cameraScreen.position;
+    {
+      for (var i = 0; i < n_light; i++) {
+        mlcm_Screen.uniforms.l.value[i].set(ml_lpos[i].x, ml_lpos[i].y, ml_lpos[i].z);
+        mlcm_Screen.uniforms.lsize.value[i] = lightsize;
+        mlcm_Screen.uniforms.mlcm_zFar.value[i] = ml_zFar[i];
+      }
+
+      mlcm_Screen.uniforms["ndis_light"].value = n_light;
+      mlcm_Screen.uniforms["eye"].value = cameraScreen.position;
+    }
   }
+
+  if (maptype == 5) {
+    for (var i = 0; i < NENV_light; i++) {
+      mlenvdp_Screen.uniforms.l.value[i].set(tmplpos[i].x, tmplpos[i].y, tmplpos[i].z);
+      mlenvdp_Screen.uniforms.lsize.value[i] = tmpls[i];
+      mlenvdp_Screen.uniforms.mlenvdp_zFar.value[i] = tmpzFar[i];
+      mlenvdp_Screen.uniforms.light_intensity.value[i].set(tmple[i].x, tmple[i].y, tmple[i].z);
+    }
+  }
+  mlenvdp_Screen.uniforms["eye"].value = cameraScreen.position;
+
+
 
   // materialScreen.uniforms["lightmv"].value = new THREE.Matrix4();
   // sceneScreen.overrideMaterial = materialRTT;
@@ -1569,8 +1966,6 @@ function renderX(dt, time_scale, lineA) {
         draw_tex_matrix = m4.multiply(draw_tex_matrix, m4.translation(1, 0, 0));
         draw_tex(texdp_id[draw_tex_id < 1 ? 1 : (draw_tex_id + 5)], draw_tex_matrix);
       }
-
-
       if (maptype == 2)
         drawcmtex(cm_texid[draw_tex_id]);
     }
@@ -1591,9 +1986,19 @@ function renderX(dt, time_scale, lineA) {
     if (draw_mlcmtex_id >= 0) {
       if (maptype == 4)
         drawcmtex(mltexcm[draw_mlcmtex_id]);
-    }
-  
+  }
 
+  if (draw_mlenvtex_id >= 0) {
+    if (maptype == 5) {
+      var draw_tex_matrix;
+      draw_tex_matrix = m4.orthographic(0, 4 * window.innerWidth / window.innerHeight, 0, 4, -1, 1);
+      draw_mldptex(mlenv_texdp_id[draw_mlenvtex_id], draw_tex_matrix, draw_layer_idx < 1 ? draw_layer_idx : (draw_layer_idx + 1));
+
+      draw_tex_matrix = m4.orthographic(0, 4 * window.innerWidth / window.innerHeight, 0, 4, -1, 1);
+      draw_tex_matrix = m4.multiply(draw_tex_matrix, m4.translation(1, 0, 0));
+      draw_mldptex(mlenv_texdp_id[draw_mlenvtex_id], draw_tex_matrix, draw_layer_idx < 1 ? 1 : (draw_layer_idx + 5));
+    }
+  }
 }
 
 var elem = document.body;

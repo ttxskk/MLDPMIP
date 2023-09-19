@@ -1,0 +1,1339 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+  <title> Multiple light dual paraboloid map</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, minimum-scale=1.0, maximum-scale=1.0">
+  <style>
+    body {
+      color: #ffffff;
+      font-family: Monospace;                                        
+      font-size: 13px;
+      text-align: center;
+      font-weight: bold;
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+    }
+
+    #info {
+      position: absolute;
+      top: 0px;
+      width: 100%;
+      padding: 5px;
+    }
+
+    a {
+      color: #ffffff;
+    }
+  </style>
+	</head>
+  <body>
+
+    <div id="container"></div>
+    <div id="info"> MLDP demo </div>
+
+    <script id="csm_mldp_shader_vs" type="x-shader/x-vertex">
+      out vec3 bv;
+      out vec2 bt;
+      out vec3 bn;
+      void main()
+      {
+        bt = uv;
+        vec4 hv = modelMatrix * vec4( position, 1.0 );
+        bv = hv.xyz/hv.w;
+        bn = mat3(modelMatrix) * normal.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+
+    <script id="csm_mldp_shader_fs" type="x-shader/x-fragment">
+      #define PI 3.14159265358979
+      #define M 4
+      #define fCSMBias 0.068
+      #define OFFSET 0.02
+      #define SCALEFACTOR 1.11
+      #define ALPHA 0.06
+      #define MAX_LIGHT 16
+
+      precision highp sampler2DArray;
+      precision mediump float;
+
+      in vec2 bt;
+      in vec3 bv;
+      in vec3 bn;
+
+      uniform vec3 eye;
+      uniform float shadow_a;
+      uniform float shadow_b;
+      uniform float zNear;
+
+      uniform vec3 l[MAX_LIGHT];
+      uniform float mldp_zFar[MAX_LIGHT];
+      uniform float lsize[MAX_LIGHT];
+      uniform sampler2DArray mldpmap[MAX_LIGHT];
+      uniform mat4 lightmv[MAX_LIGHT];
+      uniform int num_dis_light;
+
+      vec4 getweights(float alpha, float k, float m)
+      {
+        vec4 weights = vec4(exp(-alpha*(k) *(k) / (m*m)),
+        exp(-alpha*(k +1.0) *(k +1.0) / (m*m)),
+        exp(-alpha*(k +2.0) *(k +2.0) / (m*m)),
+        exp(-alpha*(k +3.0) *(k +3.0) / (m*m)));
+        return weights;
+      }
+
+      float estimateFilterWidth(float lightsize, float currentDepth, float blockerDepth)
+      {
+        // receiver depth
+        float receiver = currentDepth;
+        float FilterWidth = (receiver -blockerDepth) *lightsize / (2.0 * currentDepth*blockerDepth);
+        return FilterWidth;
+      }
+
+      float estimatefwo(float lightsize, float distance, float smpos)
+      {
+        float aa, bb, cc;
+        aa = lightsize / distance;
+        bb = lightsize / smpos;
+
+        aa = clamp(aa, 0.0, 1.0);
+        bb = clamp(bb, 0.0, 1.0);
+        cc = aa*bb +sqrt( max((1.0 -aa*aa) *(1.0 -bb*bb),0.0));
+
+        return sqrt(1.0-cc*cc) / (1.0+cc);  // DP map filter size
+      }
+
+      float fscm2dp(float ws)
+      {
+        return ws;
+        ws = clamp(ws, 0.0, 2.0);
+        if (ws < 1.0)
+        {
+          ws /= sqrt(ws*ws+1.0) +1.0;
+        }
+        else
+        {
+          ws = 2.0 -ws;
+          ws = sqrt(ws*ws+1.0) -ws;
+        }
+        return ws;
+      }
+
+      float ufunc( float zval, float fs )
+      {
+      vec2 p = vec2(sqrt(1.0-zval*zval), abs(zval));
+      vec2 t = vec2(2.0*fs , 1.0-fs*fs)/(1.0+fs*fs);
+      return max(p.x/(1.0+p.y)
+      - (p.x*t.y-p.y*t.x)/(1.0+dot(p,t)), fs);
+      }
+
+      vec4 getTexVal(int idx, vec2 tc, int layer0, float ml)
+      {
+        if(idx==0)
+         return textureLod(mldpmap[0], vec3(tc, layer0), ml);
+        if(idx==1)
+         return textureLod(mldpmap[1], vec3(tc, layer0), ml);
+        if(idx==2)
+         return textureLod(mldpmap[2], vec3(tc, layer0), ml);
+        if(idx==3)
+         return textureLod(mldpmap[3], vec3(tc, layer0), ml);
+        if(idx==4)
+         return textureLod(mldpmap[4], vec3(tc, layer0), ml);
+        if(idx==5)
+         return textureLod(mldpmap[5], vec3(tc, layer0), ml);
+        if(idx==6)
+         return textureLod(mldpmap[6], vec3(tc, layer0), ml);
+        if(idx==7)
+         return textureLod(mldpmap[7], vec3(tc, layer0), ml);
+        if(idx==8)
+         return textureLod(mldpmap[8], vec3(tc, layer0), ml);
+        if(idx==9)
+         return textureLod(mldpmap[9], vec3(tc, layer0), ml);
+        if(idx==10)
+         return textureLod(mldpmap[10], vec3(tc, layer0), ml);
+        if(idx==11)
+         return textureLod(mldpmap[11], vec3(tc, layer0), ml);
+        if(idx==12)
+         return textureLod(mldpmap[12], vec3(tc, layer0), ml);
+        if(idx==13)
+         return textureLod(mldpmap[13], vec3(tc, layer0), ml);
+        if(idx==14)
+         return textureLod(mldpmap[14], vec3(tc, layer0), ml);
+        if(idx==15)
+         return textureLod(mldpmap[15], vec3(tc, layer0), ml);
+      }
+
+      vec4 _f4mipmapMLDPMAP(int _lidx, int layer0, int layer1, vec3 uv, float fs)
+      {
+        fs = fscm2dp(fs);
+        uv = normalize(uv);
+
+        fs=.74*ufunc(uv.z, fs);
+
+        float W0 = float(textureSize(mldpmap[0], 0).x);
+        //float W0 = float(textureSize(mldpmap, 0).x);
+        float ml = log(W0*fs) / log(2.0);
+        vec2 tc = vec2(uv.x, uv.y) / (1.0 +uv.z);
+
+        vec2 coordf = vec2(-tc.x, tc.y) *.5+.5;
+        vec4 cfront= getTexVal(_lidx, coordf.xy, layer0, ml);//textureLod(mldp_map[i], vec3(coordf.xy, layer0), ml);
+        tc = uv.xy / (1.0 -uv.z);
+        vec2 coordb = tc*.5 +.5;
+        vec4 cback = getTexVal(_lidx, coordb.xy, layer1, ml);//textureLod(mldp_map[i], vec3(coordb.xy, layer1), ml);
+
+        // delete seams
+        float resolution = 1.0 / fs;
+        float sss = clamp((length(uv.xy)/(1.0 +abs(uv.z))-1.0)*resolution+1.0, 0.0, 1.0) * .5;
+        if(uv.z < 0.0)
+        sss = 1.0 -sss;
+        return mix(cfront, cback, sss);
+      }
+
+      vec4 f4mipmapMLDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
+      {
+        return _f4mipmapMLDPMAP(lidx, layer0, layer1, uv, fs) *2.0-1.0;
+      }
+
+      float CSSM_Z_Basis(
+        vec3 uv,
+        float currentDepth,
+        float filterwidth,
+        int lidx
+      ){
+        vec4 tmp, sin_val_z, cos_val_z;
+        float sum0, sum1;
+        float depthvalue = f4mipmapMLDPMAP(lidx, 0, 1, uv, filterwidth).x;
+        sin_val_z = f4mipmapMLDPMAP(lidx, 5, 5+M, uv, filterwidth);
+        cos_val_z = f4mipmapMLDPMAP(lidx, 4, 4+M, uv, filterwidth);
+        tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+        vec4 weights = getweights(ALPHA, 1.0, float(M));
+        sum0 = dot(sin(tmp*(currentDepth-fCSMBias)) / tmp, cos_val_z*weights);
+        sum1 = dot(cos(tmp*(currentDepth-fCSMBias)) / tmp, sin_val_z*weights);
+        return 0.5*depthvalue +2.0*(sum0 -sum1);
+      }
+
+      float CSSM_Basis(
+        vec3 uv,
+        float currentDepth,
+        float filterwidth,
+        float supress_flag,
+        int lidx
+      ){
+        vec4 tmp, sin_val, cos_val;
+        float sum0, sum1;
+
+        sin_val = f4mipmapMLDPMAP(lidx, 3, 3+M, uv, filterwidth);
+        cos_val = f4mipmapMLDPMAP(lidx, 2, 2+M, uv, filterwidth);
+
+        tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+        vec4 weights = getweights(ALPHA, 1.0, float(M));
+
+        sum0 = dot(cos(tmp*(currentDepth -fCSMBias)) / tmp, sin_val*weights);
+        sum1 = dot(sin(tmp*(currentDepth -fCSMBias)) / tmp, cos_val*weights);
+
+        float rec = 0.5 +2.0*(sum0 - sum1);
+        if(supress_flag == 1.0)
+        rec = SCALEFACTOR*(rec -OFFSET);
+        return clamp((1.0*rec), 0.0, 1.0);
+      }
+
+      float FindBlockDepth(
+        vec3 uv,
+        float currentDepth,
+        float distance,
+        float lightsize,
+        int lidx,
+        float zNear,
+        float zFar
+      ){
+        float fs = estimatefwo(lightsize, distance, zNear);
+        fs = clamp(fs, 0.0, 2.0);
+        float blockedNum = 1.0 - CSSM_Basis(uv, currentDepth, fs, 0.0, lidx);
+        if( blockedNum>0.001 )
+        {
+          float Z_avg;
+          Z_avg = CSSM_Z_Basis(uv, currentDepth, fs, lidx) / blockedNum;
+          return Z_avg*zFar;
+        }
+        else
+          return distance+1.0;
+      }
+
+      float csm_pcf_filter(
+        vec3 uv,
+        float currentDepth,
+        float filterWidth,
+        int lidx
+      ){
+        float shadow = CSSM_Basis(uv, currentDepth, filterWidth, 1.0,lidx);
+        return shadow;
+      }
+
+      float CSM_SoftShadow_ML(
+        vec3 uv,
+        float distance,
+        float lightsize,
+        float zNear,
+        float zFar,
+        int lidx,
+        float shadow_a,
+        float shadow_b
+      ){
+        float currentDepth = distance/zFar;
+        float blockerdepth = FindBlockDepth(uv, currentDepth, distance, lightsize, lidx, zNear, zFar);
+        float shadow = 1.0;
+        if( blockerdepth < distance )
+        {
+          float FilterWidth = estimatefwo(lightsize, distance, blockerdepth);
+          shadow = csm_pcf_filter(uv, currentDepth, FilterWidth, lidx);
+          float temp = shadow_b*(blockerdepth - distance);
+          float power = 1.0 +shadow_a* exp(temp);
+          shadow = pow(shadow, power );
+        }
+        return shadow;
+      }
+
+      void main()
+      {
+        gl_FragColor = vec4(1.0); //texture(tex0, bt);
+
+        float specular, diffuse, attenuation, vb, ld;
+        vec3 uv, ldir;
+        float acc= 0.0;
+
+       for(int j=0; j<num_dis_light; j++)
+        {
+          vec3 lpos, edir, ndir;
+          mat4 lmv;
+          float lightsize;
+          float zFar;
+          lightsize = lsize[j];
+
+          ndir = normalize(bn);
+          lpos = l[j]-bv;
+          ld = length(lpos);
+          ldir = lpos/ld;
+          edir = normalize( reflect( -(eye-bv), ndir) );  // normalize(  (eye-bv) - 2.0*dot( (eye-bv) ,ndir)* ndir);
+          diffuse  = max(dot(ldir, ndir), 0.0);
+          specular = pow(max(dot(ldir,edir),0.0), 8.0*mix( 4.0, 1.0, lightsize/.2 )   );
+          attenuation = 1.5 / (1.0 + mix( .5, .75, lightsize/.2 ) * ld*ld );
+
+          lmv = lightmv[j];
+          zFar = mldp_zFar[j];
+          uv = -ldir*mat3(lmv);
+
+          vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
+          acc += attenuation*diffuse* vb;
+        }
+        gl_FragColor.xyz = vec3(acc)*1.0/float(num_dis_light);//0.4;
+        gl_FragColor.w = 1.0;
+      }
+    </script>
+
+    <script id="csm_mlcm_shader_vs" type="x-shader/x-vertex">
+      out vec3 bv;
+      out vec2 bt;
+      out vec3 bn;
+      void main()
+      {
+        bt = uv;
+        vec4 hv = modelMatrix * vec4( position, 1.0 );
+        bv = hv.xyz/hv.w;
+        bn = mat3(modelMatrix) * normal.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+
+    <script id="csm_mlcm_shader_fs" type="x-shader/x-fragment">
+      #define PI 3.14159265358979
+      #define M 4
+      #define fCSMBias 0.068
+      #define OFFSET 0.02
+      #define SCALEFACTOR 1.11
+      #define ALPHA 0.06
+      #define N_LIGHT 3
+
+      in vec2 bt;
+      in vec3 bv;
+      in vec3 bn;
+
+      uniform vec3 eye;
+      uniform float zNear;
+      uniform float shadow_a;
+      uniform float shadow_b;
+      uniform float tex_size;
+
+      uniform vec3 l[N_LIGHT];
+      uniform float mlcm_zFar[N_LIGHT];
+      uniform float lsize[N_LIGHT];
+      uniform samplerCube cmmap[N_LIGHT*(M+1)];
+      uniform mat4 lightmv[N_LIGHT];
+      uniform int ndis_light;
+
+      vec4 getweights(float alpha, float k, float m)
+      {
+        vec4 weights = vec4(exp(-alpha*(k) *(k) / (m*m)),
+        exp(-alpha*(k +1.0) *(k +1.0) / (m*m)),
+        exp(-alpha*(k +2.0) *(k +2.0) / (m*m)),
+        exp(-alpha*(k +3.0) *(k +3.0) / (m*m)));
+        return weights;
+      }
+
+      float estimateFilterWidth(float lightsize, float currentDepth, float blockerDepth)
+      {   // receiver depth
+        float receiver = currentDepth;
+        float FilterWidth = (receiver -blockerDepth) *lightsize / (2.0 * currentDepth*blockerDepth);
+        return FilterWidth;
+      }
+
+      float estimatefwo(float lightsize, float distance, float smpos)
+      {
+        float aa, bb, cc;
+        aa = lightsize / distance;
+        bb = lightsize / smpos;
+        aa = clamp(aa, 0.0, 1.0);
+        bb = clamp(bb, 0.0, 1.0);
+
+        cc = aa*bb +sqrt((1.0 -aa*aa) *(1.0 -bb*bb));
+        return sqrt(1.0 / (cc*cc) -1.0);
+      }
+
+      vec4 getCMTexVal(int idx0, int basis_idx, vec3 uv, float ml)
+      {
+        if(basis_idx == 0)
+        {
+          if(idx0 == 0)
+            return textureLod(cmmap[0], uv, ml);
+          if(idx0 == 1)
+            return textureLod(cmmap[5], uv, ml);
+          if(idx0 == 2)
+            return textureLod(cmmap[10], uv, ml);
+        }
+        if(basis_idx == 1)
+        {
+          if(idx0 == 0)
+            return textureLod(cmmap[1], uv, ml);
+          if(idx0 == 1)
+            return textureLod(cmmap[6], uv, ml);
+          if(idx0 == 2)
+            return textureLod(cmmap[11], uv, ml);
+        }
+        if(basis_idx == 2)
+        {
+          if(idx0 == 0)
+            return textureLod(cmmap[2], uv, ml);
+          if(idx0 == 1)
+            return textureLod(cmmap[7], uv, ml);
+          if(idx0 == 2)
+            return textureLod(cmmap[12], uv, ml);
+        }
+        if(basis_idx == 3)
+        {
+          if(idx0 == 0)
+            return textureLod(cmmap[3], uv, ml);
+          if(idx0 == 1)
+            return textureLod(cmmap[8], uv, ml);
+          if(idx0 == 2)
+            return textureLod(cmmap[13], uv, ml);
+        }
+        if(basis_idx == 4)
+        {
+          if(idx0 == 0)
+            return textureLod(cmmap[4], uv, ml);
+          if(idx0 == 1)
+            return textureLod(cmmap[9], uv, ml);
+          if(idx0 == 2)
+            return textureLod(cmmap[14], uv, ml);
+        }
+      }
+
+      vec4 _f4mipmapCMMAP(vec3 uv, float fs, int idx0, int basis_idx)
+      {
+        vec4 result;
+        uv = normalize(uv);
+        float W0 = float(textureSize(cmmap[0], 0).x);
+        float ml = log(W0*fs) / log(2.0);
+        //result = textureLod(cmmap, uv, ml);
+        result = getCMTexVal(idx0, basis_idx, uv, ml);
+        return result;
+      }
+
+      vec4 f4mipmapCMMAP(vec3 uv, float fs, int idx0, int basis_idx)
+      {
+        return _f4mipmapCMMAP(uv, fs, idx0, basis_idx) *2.0-1.0;
+      }
+
+      float CSSM_CM_Z_Basis(
+        vec3 uv,
+        float currentDepth,
+        float filterwidth,
+        int idx0
+      ){
+        vec4 tmp, sin_val_z, cos_val_z;
+        float sum0, sum1;
+        float depthvalue = f4mipmapCMMAP(uv, filterwidth, idx0, 0).x;
+        sin_val_z = f4mipmapCMMAP(uv, filterwidth, idx0, 4);
+        cos_val_z = f4mipmapCMMAP(uv, filterwidth, idx0, 3);
+        tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+        vec4 weights = getweights(ALPHA, 1.0, float(M));
+        sum0 = dot(sin(tmp*(currentDepth -fCSMBias)) / tmp, cos_val_z*weights);
+        sum1 = dot(cos(tmp*(currentDepth -fCSMBias)) / tmp, sin_val_z*weights);
+        return 0.5*depthvalue +2.0*(sum0 -sum1);
+      }
+
+      float CSSM_CM_Basis(
+        vec3 uv,
+        float currentDepth,
+        float filterwidth,
+        float supress_flag,
+        int idx0
+      ){
+        vec4 tmp, sin_val, cos_val;
+        float sum0, sum1;
+        sin_val = f4mipmapCMMAP(uv, filterwidth, idx0, 2);
+        cos_val = f4mipmapCMMAP(uv, filterwidth, idx0, 1);
+        tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+        vec4 weights = getweights(ALPHA, 1.0, float(M));
+        sum0 = dot(cos(tmp*(currentDepth -fCSMBias)) / tmp, sin_val*weights);
+        sum1 = dot(sin(tmp*(currentDepth -fCSMBias)) / tmp, cos_val*weights);
+        float rec = 0.5 +2.0*(sum0 -sum1);
+        if (supress_flag == 1.0)
+        rec = SCALEFACTOR*(rec -OFFSET);
+        return clamp((1.0*rec), 0.0, 1.0);
+      }
+
+      float FindBlockDepth_CM(
+        vec3 uv,
+        float currentDepth,
+        float distance,
+        float lightsize,
+        float zNear,
+        float zFar,
+        int idx0
+       ){
+        float fs = estimatefwo(lightsize, distance, zNear);
+        fs = clamp(fs, 0.0, 2.0);
+        float blockedNum = 1.0 - CSSM_CM_Basis(uv, currentDepth, fs, 0.0, idx0);
+        if( blockedNum>0.001 )
+        {
+          float Z_avg;
+          Z_avg = CSSM_CM_Z_Basis(uv, currentDepth, fs, idx0) / blockedNum;
+          return Z_avg*zFar;
+        }
+        else
+        return distance+1.0;
+      }
+
+      float csm_cm_pcf_filter(
+        vec3 uv,
+        float currentDepth,
+        float filterWidth,
+        int idx0
+      ){
+        float shadow = CSSM_CM_Basis(uv, currentDepth, filterWidth, 1.0, idx0);
+        return shadow;
+      }
+
+      float CSM_SoftShadow_MLCM(
+        vec3 uv,
+        float distance,
+        float lightsize,
+        float zNear,
+        float zFar,
+        float shadow_a,
+        float shadow_b,
+        int idx0
+      ){
+        float currentDepth = distance/zFar;
+        float blockerdepth = FindBlockDepth_CM(uv, currentDepth, distance, lightsize, zNear, zFar, idx0);
+        float shadow = 1.0;
+        if( blockerdepth < distance  )
+        {
+          float FilterWidth = estimatefwo(lightsize, distance, blockerdepth);
+          shadow = csm_cm_pcf_filter(uv, currentDepth, FilterWidth, idx0);
+          float temp = shadow_b*(blockerdepth -distance);
+          float power = 1.0 +shadow_a* exp(temp);
+          shadow = pow(shadow, power);
+        }
+        return shadow;
+      }
+
+      void main()
+      {
+
+        gl_FragColor = vec4(1.0);
+        float specular, diffuse, attenuation;
+        float ld;
+        vec3 ldir;
+        vec3 uv;
+        float lightsize, zFar, vb, acc = 0.0;
+        mat3 lmv;
+
+        for(int j=0; j<ndis_light; j++)
+        {
+          vec3 lpos, edir, ndir;
+          ndir = normalize(bn);
+          lpos = l[j]-bv;
+          ld = length(lpos);
+          ldir = lpos/ld;
+          edir = normalize( reflect( -(eye-bv), ndir) );
+          lmv = mat3(lightmv[j]);
+          uv =  -ldir*lmv;
+          lightsize = lsize[j];
+          zFar = mlcm_zFar[j];
+
+          diffuse  = max(dot(ldir, ndir), 0.0);
+          specular = pow(max(dot(ldir,edir),0.0), 8.0*mix( 4.0, 1.0, lightsize/.2 )   );
+          attenuation = 1.5 / (1.0 + mix( .5, .75, lightsize/.2 ) * ld*ld );
+
+          vb = CSM_SoftShadow_MLCM( uv, ld, lightsize, zNear, zFar, shadow_a, shadow_b, j);
+          acc += attenuation*diffuse* vb;
+        }
+        gl_FragColor.xyz = vec3(acc)*1.0/float(ndis_light);//0.4;
+        gl_FragColor.w=1.0;
+      }
+    </script>
+
+    <script id="csm_mlenvdp_shader_vs" type="x-shader/x-vertex">
+      out vec3 bv;
+      out vec2 bt;
+      out vec3 bn;
+      void main()
+      {
+        bt = uv;
+        vec4 hv = modelMatrix * vec4( position, 1.0 );
+        bv = hv.xyz/hv.w;
+        bn = mat3(modelMatrix) * normal.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+
+    <script id="csm_mlenvdp_shader_fs" type="x-shader/x-fragment">
+      #define PI 3.14159265358979
+      #define M 4
+      #define fCSMBias 0.068
+      #define OFFSET 0.02
+      #define SCALEFACTOR 1.11
+      #define ALPHA 0.06
+      #define MAX_LIGHT 8  // 16 will be too slow
+
+      precision highp sampler2DArray;
+      precision mediump float;
+
+      in vec2 bt;
+      in vec3 bv;
+      in vec3 bn;
+
+      uniform vec3 eye;
+      uniform float shadow_a;
+      uniform float shadow_b;
+      uniform float zNear;
+
+      uniform vec3 l[MAX_LIGHT];
+      uniform float mlenvdp_zFar[MAX_LIGHT];
+      uniform float lsize[MAX_LIGHT];
+      uniform sampler2DArray mlenv_dpmap[MAX_LIGHT];
+      uniform mat4 lightmv[MAX_LIGHT];
+      uniform vec3 light_intensity[MAX_LIGHT];
+
+      vec4 getweights(float alpha, float k, float m)
+      {
+        vec4 weights = vec4(exp(-alpha*(k) *(k) / (m*m)),
+        exp(-alpha*(k +1.0) *(k +1.0) / (m*m)),
+        exp(-alpha*(k +2.0) *(k +2.0) / (m*m)),
+        exp(-alpha*(k +3.0) *(k +3.0) / (m*m)));
+        return weights;
+      }
+
+      float estimateFilterWidth(float lightsize, float currentDepth, float blockerDepth)
+      {
+        // receiver depth
+        float receiver = currentDepth;
+        float FilterWidth = (receiver -blockerDepth) *lightsize / (2.0 * currentDepth*blockerDepth);
+        return FilterWidth;
+      }
+
+      float estimatefwo(float lightsize, float distance, float smpos)
+      {
+        float aa, bb, cc;
+        aa = lightsize / distance;
+        bb = lightsize / smpos;
+
+        aa = clamp(aa, 0.0, 1.0);
+        bb = clamp(bb, 0.0, 1.0);
+        cc = aa*bb +sqrt( max((1.0 -aa*aa) *(1.0 -bb*bb),0.0));
+
+        return sqrt(1.0-cc*cc) / (1.0+cc);  // DP map filter size
+      }
+
+      float fscm2dp(float ws)
+      {
+        return ws;
+        ws = clamp(ws, 0.0, 2.0);
+        if (ws < 1.0)
+        {
+          ws /= sqrt(ws*ws+1.0) +1.0;
+        }
+        else
+        {
+          ws = 2.0 -ws;
+          ws = sqrt(ws*ws+1.0) -ws;
+        }
+        return ws;
+      }
+
+      float ufunc( float zval, float fs )
+      {
+      vec2 p = vec2(sqrt(1.0-zval*zval), abs(zval));
+      vec2 t = vec2(2.0*fs , 1.0-fs*fs)/(1.0+fs*fs);
+      return max(p.x/(1.0+p.y)
+      - (p.x*t.y-p.y*t.x)/(1.0+dot(p,t)), fs);
+      }
+
+      vec4 getTexVal(int idx, vec2 tc, int layer0, float ml)
+      {
+        if(idx==0)
+         return textureLod(mlenv_dpmap[0], vec3(tc, layer0), ml);
+        if(idx==1)
+         return textureLod(mlenv_dpmap[1], vec3(tc, layer0), ml);
+        if(idx==2)
+         return textureLod(mlenv_dpmap[2], vec3(tc, layer0), ml);
+        if(idx==3)
+         return textureLod(mlenv_dpmap[3], vec3(tc, layer0), ml);
+        if(idx==4)
+         return textureLod(mlenv_dpmap[4], vec3(tc, layer0), ml);
+        if(idx==5)
+         return textureLod(mlenv_dpmap[5], vec3(tc, layer0), ml);
+        if(idx==6)
+         return textureLod(mlenv_dpmap[6], vec3(tc, layer0), ml);
+        if(idx==7)
+         return textureLod(mlenv_dpmap[7], vec3(tc, layer0), ml);
+      }
+
+      vec4 _f4mipmapMLENVDPMAP(int _lidx, int layer0, int layer1, vec3 uv, float fs)
+      {
+        fs = fscm2dp(fs);
+        uv = normalize(uv);
+
+        fs=.74*ufunc(uv.z, fs);
+
+        float W0 = float(textureSize(mlenv_dpmap[0], 0).x);
+        float ml = log(W0*fs) / log(2.0);
+        vec2 tc = vec2(uv.x, uv.y) / (1.0 +uv.z);
+
+        vec2 coordf = vec2(-tc.x, tc.y) *.5+.5;
+        vec4 cfront= getTexVal(_lidx, coordf.xy, layer0, ml);
+        tc = uv.xy / (1.0 -uv.z);
+        vec2 coordb = tc*.5 +.5;
+        vec4 cback = getTexVal(_lidx, coordb.xy, layer1, ml);
+
+        // delete seams
+        float resolution = 1.0 / fs;
+        float sss = clamp((length(uv.xy)/(1.0 +abs(uv.z))-1.0)*resolution+1.0, 0.0, 1.0) * .5;
+        if(uv.z < 0.0)
+        sss = 1.0 -sss;
+        return mix(cfront, cback, sss);
+      }
+
+      vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
+      {
+        return _f4mipmapMLENVDPMAP(lidx, layer0, layer1, uv, fs) *2.0-1.0;
+      }
+
+      float CSSM_Z_Basis(
+        vec3 uv,
+        float currentDepth,
+        float filterwidth,
+        int lidx
+      ){
+        vec4 tmp, sin_val_z, cos_val_z;
+        float sum0, sum1;
+        float depthvalue = f4mipmapMLENVDPMAP(lidx, 0, 1, uv, filterwidth).x;
+        sin_val_z = f4mipmapMLENVDPMAP(lidx, 5, 5+M, uv, filterwidth);
+        cos_val_z = f4mipmapMLENVDPMAP(lidx, 4, 4+M, uv, filterwidth);
+        tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+        vec4 weights = getweights(ALPHA, 1.0, float(M));
+        sum0 = dot(sin(tmp*(currentDepth-fCSMBias)) / tmp, cos_val_z*weights);
+        sum1 = dot(cos(tmp*(currentDepth-fCSMBias)) / tmp, sin_val_z*weights);
+        return 0.5*depthvalue +2.0*(sum0 -sum1);
+      }
+
+      float CSSM_Basis(
+        vec3 uv,
+        float currentDepth,
+        float filterwidth,
+        float supress_flag,
+        int lidx
+      ){
+        vec4 tmp, sin_val, cos_val;
+        float sum0, sum1;
+
+        sin_val = f4mipmapMLENVDPMAP(lidx, 3, 3+M, uv, filterwidth);
+        cos_val = f4mipmapMLENVDPMAP(lidx, 2, 2+M, uv, filterwidth);
+
+        tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+        vec4 weights = getweights(ALPHA, 1.0, float(M));
+
+        sum0 = dot(cos(tmp*(currentDepth -fCSMBias)) / tmp, sin_val*weights);
+        sum1 = dot(sin(tmp*(currentDepth -fCSMBias)) / tmp, cos_val*weights);
+
+        float rec = 0.5 +2.0*(sum0 - sum1);
+        if(supress_flag == 1.0)
+        rec = SCALEFACTOR*(rec -OFFSET);
+        return clamp((1.0*rec), 0.0, 1.0);
+      }
+
+      float FindBlockDepth(
+        vec3 uv,
+        float currentDepth,
+        float distance,
+        float lightsize,
+        int lidx,
+        float zNear,
+        float zFar
+      ){
+        float fs = estimatefwo(lightsize, distance, zNear);
+        fs = clamp(fs, 0.0, 2.0);
+        float blockedNum = 1.0 - CSSM_Basis(uv, currentDepth, fs, 0.0, lidx);
+        if( blockedNum>0.001 )
+        {
+          float Z_avg;
+          Z_avg = CSSM_Z_Basis(uv, currentDepth, fs, lidx) / blockedNum;
+          return Z_avg*zFar;
+        }
+        else
+          return distance+1.0;
+      }
+
+      float csm_pcf_filter(
+        vec3 uv,
+        float currentDepth,
+        float filterWidth,
+        int lidx
+      ){
+        float shadow = CSSM_Basis(uv, currentDepth, filterWidth, 1.0,lidx);
+        return shadow;
+      }
+
+      float CSM_SoftShadow_ML(
+        vec3 uv,
+        float distance,
+        float lightsize,
+        float zNear,
+        float zFar,
+        int lidx,
+        float shadow_a,
+        float shadow_b
+      ){
+        float currentDepth = distance/zFar;
+        float blockerdepth = FindBlockDepth(uv, currentDepth, distance, lightsize, lidx, zNear, zFar);
+        float shadow = 1.0;
+        if( blockerdepth < distance )
+        {
+          float FilterWidth = estimatefwo(lightsize, distance, blockerdepth);
+          shadow = csm_pcf_filter(uv, currentDepth, FilterWidth, lidx);
+          float temp = shadow_b*(blockerdepth - distance);
+          float power = 1.0 +shadow_a* exp(temp);
+          shadow = pow(shadow, power );
+        }
+        return shadow;
+      }
+
+      void main()
+      {
+       gl_FragColor = vec4(1.0); //texture(tex0, bt);
+
+       float specular, diffuse, attenuation, ld, vb;
+       vec3 uv, ldir;
+       vec3 acc= vec3(0.0);
+
+       for(int j=0; j<MAX_LIGHT; j++)
+        {
+          vec3 lpos, edir, ndir;
+          mat4 lmv;
+          float lightsize;
+          float zFar;
+          lightsize = lsize[j];
+          vec3 le = light_intensity[j];
+
+          ndir = normalize(bn);
+          lpos = l[j]-bv;
+          ld = length(lpos);
+          ldir = lpos/ld;
+          edir = normalize( reflect( -(eye-bv), ndir) );
+          diffuse  = max(dot(ldir, ndir), 0.0);
+          specular = pow(max(dot(ldir,edir),0.0), 8.0*mix( 4.0, 1.0, lightsize/.2 )   );
+          attenuation = 1.5 / (1.0 + mix( .5, .75, lightsize/.2 ) * ld*ld );
+
+          lmv = lightmv[j];
+          zFar = mlenvdp_zFar[j];
+          uv = -ldir*mat3(lmv);
+
+          vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
+          acc += le*attenuation*diffuse* vb;
+        }
+        gl_FragColor= vec4(acc*0.0002, 1.0);
+      }
+    </script>
+
+    <!--multiple light  gen dp shadow map shader-->
+    <script id="mldp_shader_vs" type="x-shader/x-vertex">
+      uniform mat4 mvp;
+      out vec3 bc;
+      out vec3 bn;
+      void main()
+      {
+        vec4 v0 = modelMatrix * vec4( position, 1.0 );
+        v0 = v0/v0.w;
+
+        vec4 hp = mvp * v0;
+        vec3 dp = normalize(hp.xyz);
+        float  ll = length(hp.xyz);
+        gl_Position.x =  dp.x / (dp.z+1.0);
+        gl_Position.y = -dp.y / (dp.z+1.0);
+        float focal_length = 0.04;
+        float dist_focus_to_parabolid =  focal_length * 2.0*ll / ( ll+ hp.z) ;
+        float dist_vertex_to_parabolid = ll - dist_focus_to_parabolid;
+        gl_Position.z = dist_vertex_to_parabolid + focal_length  - 1.0 ;
+        gl_Position.w = 1.0;
+
+        bc = v0.xyz;
+      }
+    </script>
+
+    <script id="mldp_shader_fs" type="x-shader/x-fragment">
+      in vec3 bc;
+      uniform float zFar;
+      uniform vec3 l;
+      void main()
+      {
+        float depth = length(bc-l) / zFar;
+        gl_FragColor = vec4(depth, 1.0, 1.0, 1.0);
+        gl_FragColor = (gl_FragColor+1.0) /2.0;
+      }
+    </script>
+    
+    <!--multiple light  gen cm shadow map shader-->
+    <script id="mlcm_shader_vs" type="x-shader/x-vertex">
+      uniform mat4 mvp;
+      uniform float zFar;
+      out vec3 bc;
+      void main()
+      {
+        vec4 v0 = modelMatrix * vec4( position, 1.0 );
+        v0 = v0/v0.w;
+        gl_Position = mvp * v0;
+        bc = v0.xyz;
+      }
+    </script>
+
+    <script id="mlcm_shader_fs" type="x-shader/x-fragment">
+      in vec3 bc;
+      uniform float zFar;
+      uniform vec3 l;
+      void main()
+      {
+        float depth = length(bc-l) / zFar;
+        gl_FragColor = vec4(depth, 1.0, 1.0, 1.0);
+        gl_FragColor = (gl_FragColor+1.0) /2.0;
+      }
+    </script>
+
+
+    <!--Annen area light  gen 2D shadow map shader-->
+    <script id="alenv_shader_vs" type="x-shader/x-vertex">
+      uniform mat4 mvp;
+      uniform mat4 uPerspectiveMatrix;
+      uniform mat4 uViewMatrix;
+      out vec3 bv;
+      out vec3 bn;
+      out vec3 bc;
+      void main()
+      {
+        vec4 hv = modelMatrix * vec4( position, 1.0 );
+        bv = hv.xyz/hv.w;
+        bn = mat3(modelMatrix) * normal.xyz;
+        gl_Position = mvp * modelMatrix *  vec4( position, 1.0 );
+
+        vec4 v0 = modelMatrix * vec4( position, 1.0 );
+        v0 = v0/v0.w;
+        bc = v0.xyz;
+
+      }
+    </script>
+
+    <script id="alenv_shader_fs" type="x-shader/x-fragment">
+      in vec3 bv;
+      in vec3 bn;
+      in vec3 bc;
+      uniform vec3 lc;
+      uniform float scalefactor;
+      void main()
+      {
+        vec3 cv, cn;
+        cv = bv;
+        cn = bn;
+
+        //float depth = (length(cv-lc) - length(lc))/scalefactor;// 150.0 ;//4.0/sqrt(3.0);
+        float depth = (length(cv-lc))/scalefactor;
+        
+        //if(dot(normalize(lc-cv), normalize(cn))<0.0)
+        //  depth -= 0.01;
+        //else
+        //  depth += 0.01;
+        
+        gl_FragColor = vec4(depth, 1.0, 1.0, 1.0);
+        gl_FragColor = (gl_FragColor+1.0) /2.0;
+
+      }
+    </script>
+    <!--Annen area light  gen 2D shadow map shader-->
+    <!--Annen area light  render to screen-->
+     <script id="csm_alenv_shader_vs" type="x-shader/x-vertex">
+      out vec3 bv;
+      out vec2 bt;
+      out vec3 bn;
+      void main()
+      {
+        bt = uv;
+        vec4 hv = modelMatrix * vec4( position, 1.0 );
+        bv = hv.xyz/hv.w;
+        bn = mat3(modelMatrix) * normal.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+
+     <script id="csm_alenv_shader_fs" type="x-shader/x-fragment">
+       #define PI 3.14159265358979
+       #define M 4
+        #define AL_SIZE 8  
+       //#define AL_SIZE 16
+       #define fCSMBias 0.068
+       #define OFFSET 0.02
+       #define SCALEFACTOR 1.11
+       #define ALPHA 0.06
+
+       precision highp sampler2DArray;
+       precision mediump float;
+
+       in vec2 bt;
+       in vec3 bv;
+       in vec3 bn;
+
+       uniform vec3 eye;
+       uniform float shadow_a;
+       uniform float shadow_b;
+
+       uniform vec3 lc[AL_SIZE];
+       uniform mat4 lightmv[AL_SIZE];
+       uniform float lightsize[AL_SIZE];
+       uniform sampler2DArray almap_arr[AL_SIZE];
+       uniform vec3 le[AL_SIZE];
+       uniform float scalefactor0;
+
+       uniform int lidx;
+       uniform float j_scale;
+
+       vec4 getweights(float alpha, float k, float m)
+       {
+         vec4 weights = vec4(exp(-alpha*(k)*(k) / (m*m)),
+           exp(-alpha*(k + 1.0)*(k + 1.0) / (m*m)),
+           exp(-alpha*(k + 2.0)*(k + 2.0) / (m*m)),
+           exp(-alpha*(k + 3.0)*(k + 3.0) / (m*m)));
+         return weights;
+       }
+                                                                        
+       vec4 getTexVal(int idx, vec2 tc, int layer0, float ml)
+       {
+         if(idx==0)
+          return textureLod(almap_arr[0], vec3(tc, layer0), ml);
+         if(idx==1)
+          return textureLod(almap_arr[1], vec3(tc, layer0), ml);
+         if(idx==2)
+          return textureLod(almap_arr[2], vec3(tc, layer0), ml);
+         if(idx==3)
+          return textureLod(almap_arr[3], vec3(tc, layer0), ml);
+         if(idx==4)
+          return textureLod(almap_arr[4], vec3(tc, layer0), ml);
+         if(idx==5)
+          return textureLod(almap_arr[5], vec3(tc, layer0), ml);
+         if(idx==6)
+          return textureLod(almap_arr[6], vec3(tc, layer0), ml);
+         if(idx==7)
+          return textureLod(almap_arr[7], vec3(tc, layer0), ml);
+         /*if(idx==8)
+          return textureLod(almap_arr[8], vec3(tc, layer0), ml);
+         if(idx==9)
+          return textureLod(almap_arr[9], vec3(tc, layer0), ml);
+         if(idx==10)
+          return textureLod(almap_arr[10], vec3(tc, layer0), ml);
+         if(idx==11)
+          return textureLod(almap_arr[11], vec3(tc, layer0), ml);
+         if(idx==12)
+          return textureLod(almap_arr[12], vec3(tc, layer0), ml);
+         if(idx==13)
+          return textureLod(almap_arr[13], vec3(tc, layer0), ml);
+         if(idx==14)
+          return textureLod(almap_arr[14], vec3(tc, layer0), ml);
+         if(idx==15)
+          return textureLod(almap_arr[15], vec3(tc, layer0), ml);    */
+       }
+
+
+       vec4 f4mipmapALMAP(int _lidx, int layer0, vec2 tc, float fs)
+       {
+         float W0 = float(textureSize(almap_arr[0], 0).x);
+         float ml = log(W0*fs) / log(2.0);
+         vec4 acc = getTexVal(_lidx, tc, layer0, ml);
+         return acc*2.0-1.0;
+       }
+
+       float CSSM_Z_Basis(
+         vec2 tc,
+         float currentDepth,
+         float filterwidth,
+         int lidx
+       ) {
+         vec4 tmp, sin_val_z, cos_val_z;
+         float sum0, sum1;
+
+         float depthvalue = f4mipmapALMAP(lidx, 0, tc, filterwidth).x;
+         sin_val_z = f4mipmapALMAP(lidx, 4, tc, filterwidth);
+         cos_val_z = f4mipmapALMAP(lidx, 3, tc, filterwidth);
+         float k = 1.0;
+         tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+         vec4 weights = getweights(ALPHA, k, float(M) );
+         sum0 = dot(sin(tmp*(currentDepth - fCSMBias)) / tmp, cos_val_z*weights);
+         sum1 = dot(cos(tmp*(currentDepth - fCSMBias)) / tmp, sin_val_z*weights);
+         return 0.5*depthvalue + 2.0*(sum0 - sum1);
+       }
+
+
+       float CSSM_Basis_al(
+         vec2 tc,
+         float currentDepth,
+         float filterwidth,
+         float supress_flag,
+         int lidx
+       ){
+         vec4 tmp, sin_val, cos_val;
+         float sum0, sum1;
+
+         sin_val = f4mipmapALMAP(lidx, 2, tc, filterwidth);
+         cos_val = f4mipmapALMAP(lidx, 1, tc, filterwidth);
+
+         float k = 1.0;
+         tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
+         vec4 weights = getweights(ALPHA, k, float(M));
+         sum0 = dot(cos(tmp*(currentDepth - fCSMBias)) / tmp, sin_val*weights); //+=
+         sum1 = dot(sin(tmp*(currentDepth - fCSMBias)) / tmp, cos_val*weights);
+
+         float rec = 0.5 + 2.0*(sum0 - sum1);
+         if( supress_flag == 1.0 )
+           rec = SCALEFACTOR*(rec - OFFSET);
+         return clamp((1.0f*rec), 0.0, 1.0);
+       }
+
+
+       float FindBlockDepth(
+       vec2 tc,
+       float currentDepth,
+               float distance,
+       float lightsize,
+       float zFar, 
+       int lidx
+       ){
+         float fs;
+           fs = lightsize;
+         //fs = mix( .5, 1.0, lightsize );
+         float blockedNum = 1.0 - CSSM_Basis_al(tc, currentDepth, fs, 0.0, lidx );
+
+         float Z_avg;
+         if(blockedNum> 0.001)
+         {
+           Z_avg = CSSM_Z_Basis(tc, currentDepth, fs, lidx) / blockedNum;
+           return Z_avg;//*zFar;
+         }
+         else
+         {
+           return 0.0;
+         }
+       }
+
+       //dual paraboloid map csm pcf filter
+       float csm_pcf_filter(
+         vec2 tc,
+         float currentDepth,
+         float filterWidth,
+         int lidx
+       ) {
+         float shadow = CSSM_Basis_al(tc, currentDepth, filterWidth,  1.0, lidx);
+         return shadow;
+       }
+
+
+       float CSM_SoftShadow_al(
+         vec2 tc,
+         float currentDepth,
+         float distance,
+         float lightsize,
+         int lidx,
+         float zFar,
+         float shadow_a, float shadow_b
+       ) {
+         float blockerdepth = FindBlockDepth(tc, currentDepth, distance, lightsize, zFar, lidx);
+
+         if (distance == 0.0 || blockerdepth >= currentDepth || blockerdepth == 0.0)
+           return 1.0;
+
+         float FilterWidth = clamp( float(abs(blockerdepth-currentDepth))*lightsize, 0.0, 1.0)*0.8;
+         float shadow = csm_pcf_filter(tc, currentDepth, FilterWidth, lidx);
+
+          float temp = shadow_b*(blockerdepth - distance);
+         //float temp = shadow_b*  blockerdepth ;
+         float power = 1.0 + shadow_a* exp(temp);
+         shadow = pow(shadow, power);
+
+         return shadow;
+       }
+
+       void main()
+       {
+         gl_FragColor = vec4(1.0); //texture(tex0, bt);
+
+         vec3 cv = bv;
+         vec3 cn = bn;
+         vec3 acc = vec3(0.0);
+         int li;
+
+         for( li=0; li<AL_SIZE; li++ )
+         //li=lidx;
+         {
+           float d0, vb, distance;
+
+           vec3 lpos   = lc[li];
+           mat4 lmv    = lightmv[li];
+           float lsize = lightsize[li];
+           vec4 hp = lmv*vec4(bv,1);
+                hp = hp/hp.w;
+           vec2 tc = hp.xy*.5+.5;
+
+           distance = length(cv-lpos);
+           //d0 = (length(cv-lpos)-length(lpos)) /scalefactor0; //current depth
+           d0 = (length(cv-lpos)) /scalefactor0;               //current depth
+
+          float initfs = lsize; 
+
+          vec4 weights = vec4(1.0);//getweights(ALPHA, 1.0, float(M));
+           float rec;
+           {
+             vec4 sin_val = f4mipmapALMAP(li, 2, tc, initfs);
+             vec4 cos_val = f4mipmapALMAP(li, 1, tc, initfs);
+             vec4 ck = PI*vec4(1.0, 3.0, 5.0, 7.0);
+             float sum0 = dot(cos(ck*d0) / ck, sin_val*weights); //+=
+             float sum1 = dot(sin(ck*d0) / ck, cos_val*weights);
+                    rec = 0.5 + 2.0*(sum0 - sum1);
+                    rec = clamp((2.0*rec), 0.0, 1.0);    // the value of CSSM_Basis_al
+           }
+           float Z_avg;
+           {
+             float depthvalue = f4mipmapALMAP(li, 0, tc, initfs).x;
+             vec4 sin_val_z   = f4mipmapALMAP(li, 4, tc, initfs);
+             vec4 cos_val_z   = f4mipmapALMAP(li, 3, tc, initfs);
+             vec4 ck = PI*vec4(1.0, 3.0, 5.0, 7.0);
+             vec4 weights = getweights(ALPHA, 1.0, float(M) );
+             float sum0 = dot(sin(ck*d0) / ck, cos_val_z*weights);
+             float sum1 = dot(cos(ck*d0) / ck, sin_val_z*weights);
+             Z_avg =  0.5*depthvalue + 2.0*(sum0 - sum1);
+             Z_avg *= 2.0;
+             if(1.0-rec>0.5)
+               Z_avg =  (0.5*depthvalue + 2.0*(sum0 - sum1))/(1.0-rec);
+           }
+           float FilterWidth;
+           float vb0;
+           {
+             FilterWidth = float(abs(Z_avg-d0))*initfs;
+             FilterWidth = clamp( FilterWidth, 0.0, 1.0);
+             //FilterWidth = abs(-(Z_avg)) * 1.0;
+             vec4 sin_val = f4mipmapALMAP(li, 2, tc, FilterWidth);
+             vec4 cos_val = f4mipmapALMAP(li, 1, tc, FilterWidth);
+
+             vec4 ck = PI*vec4(1.0, 3.0, 5.0, 7.0);
+             float sum0 = dot(cos(ck*d0) / ck, sin_val*weights ); //+=
+             float sum1 = dot(sin(ck*d0) / ck, cos_val*weights );
+
+             vb0 = 0.5 + 2.0*(sum0 - sum1);
+             //vb0 =SCALEFACTOR*(vb0 - OFFSET);
+             vb0 *=2.0;
+             vb0 = 1.0 + 3.0*exp(- 1.0*max(-(d0-Z_avg),0.0));
+             vb0 = clamp(vb0, 0.0, 1.0);
+           }
+
+          vb = CSM_SoftShadow_al(
+                   tc,        //lookup tex coordinate 
+                   d0,        //float currentDepth,
+                   distance,  //float distance,
+                   lsize,     //clamp( lsize, 0.0, 80.0 ), //float lightsize,   24.0
+                   li,        //sampler2DArray almap,                   
+                   scalefactor0, // zFar
+                   shadow_a,  //float shadow_a,
+                   shadow_b   //float shadow_b
+                 );
+           float theta = acos( dot(normalize(lc[li]-cv),normalize(cn)) );
+           theta = clamp( theta/mix( 1.0, 1.4, lsize/80.0 ), 0.0, PI/2.0 );
+
+           vec3 ldir = lc[li]-cv;
+           float ld = length(ldir);
+           ldir = ldir/ld;
+           vec3 edir = normalize( reflect( -(eye-cv), normalize(cn)) );
+           float diffuse = max(dot(ldir, normalize(cn)), 0.0);
+           float attenuation = 1.5 / (1.0 + mix( .5, .75, lsize/.2 ) * ld*ld );
+           acc += le[li] * attenuation*diffuse* vb;
+          //  acc += le[li] * attenuation*diffuse* vb0;
+         }
+
+          gl_FragColor= vec4(acc*0.0008, 1.0);
+          //gl_FragColor= vec4(acc*j_scale, 1.0);
+          //gl_FragColor= vec4(acc*0.003, 1.0);    //for litfar = 4.4
+         // gl_FragColor= vec4(acc, 1.0);
+       }
+     </script>
+
+    <script>
+      var canvas = document.createElement('canvas');
+      gl = canvas.getContext('webgl2');
+
+    </script>
+
+    <script src="bezier_length.js"></script>
+    <!--<script src="readEnvMap.js"></script>-->
+
+    <script src="m4.js"></script>
+    <script src="g_vector.js"></script>
+    <script src="g_shader.js"></script>
+    <script src="shader_js/drawtex_shader.js"></script>
+    <script src="shader_js/drawcmtex_shader.js"></script>
+    <script src="shader_js/genbasis_shader_cm.js"></script>
+    <!--multiple light basis shader-->
+    <script src="shader_js/genbasis_shader_mldp.js"></script>
+    <script src="shader_js/genbasis_shader_mldps.js"></script>
+    <script src="shader_js/drawmldptex_shader.js"></script>
+
+    <!--annen area light shader-->
+    <script src="shader_js/genbasis_shader_alenv.js"></script>
+    <script src="shader_js/drawaltex_shader.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./three_js/three.module.js",
+          }
+      }
+    </script>
+    <script type="module" src="./index.js"></script>
+    
+  
+  </body>
+</html>

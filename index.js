@@ -1454,6 +1454,9 @@ if (!t0_enabled0)
 gl.bindTexture(gl.TEXTURE_2D, tex0);
 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbo0);
 gl.viewport(port0[0], port0[1], port0[2], port0[3]);
+gl.clear(gl.DEPTH_BUFFER_BIT);
+gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+
 }
 
 //draw

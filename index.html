@@ -3427,6 +3427,8 @@
       if (maptype == 0) {
         mldp_renderx(renderer);
         genbasis_mldpmapy();
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
       }
       if (maptype == 1) {
         mlcm_render(renderer);

@@ -1285,7 +1285,8 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
 function prepare_mlcmfbo(cm_side) {
-mlcm_fbo = gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER, mlcm_fbo);
+mlcm_fbo = gl.createFramebuffer();
+gl.bindFramebuffer(gl.FRAMEBUFFER, mlcm_fbo);
 
 mlcm_rbo = gl.createRenderbuffer();
 gl.bindRenderbuffer(gl.RENDERBUFFER, mlcm_rbo);
@@ -1453,8 +1454,6 @@ if (!t0_enabled0)
 gl.bindTexture(gl.TEXTURE_2D, tex0);
 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbo0);
 gl.viewport(port0[0], port0[1], port0[2], port0[3]);
-
-
 }
 
 //draw

@@ -103,7 +103,7 @@ var mlenv_texdp_rt_s_id, mlenv_texdp_s_id;  //draw_texture indeed stores the dep
 //Annen env. map approximation
 var num_arealight = 8;
 //var num_arealight = 16;
-var my_arealight = new Array();
+var my_arealight = new Array(16);
 var al_lpos = new Array(num_arealight);
 var al_lsize = new Array(num_arealight);
 var al_le = new Array(num_arealight);
@@ -1252,6 +1252,7 @@ if (isAnimate) {
 requestAnimationFrame(animate);
 cameraScreen_controls.update();
 renderX(dt, time_scale, lineA);
+
 stats.update();
 }
 
@@ -1285,8 +1286,7 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
 function prepare_mlcmfbo(cm_side) {
-mlcm_fbo = gl.createFramebuffer();
-gl.bindFramebuffer(gl.FRAMEBUFFER, mlcm_fbo);
+mlcm_fbo = gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER, mlcm_fbo);
 
 mlcm_rbo = gl.createRenderbuffer();
 gl.bindRenderbuffer(gl.RENDERBUFFER, mlcm_rbo);
@@ -1454,8 +1454,7 @@ if (!t0_enabled0)
 gl.bindTexture(gl.TEXTURE_2D, tex0);
 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbo0);
 gl.viewport(port0[0], port0[1], port0[2], port0[3]);
-gl.clear(gl.DEPTH_BUFFER_BIT);
-gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+
 
 }
 

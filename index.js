@@ -103,7 +103,7 @@ var mlenv_texdp_rt_s_id, mlenv_texdp_s_id;  //draw_texture indeed stores the dep
 //Annen env. map approximation
 var num_arealight = 8;
 //var num_arealight = 16;
-var my_arealight = new Array(16);
+var my_arealight = new Array(1600);
 var al_lpos = new Array(num_arealight);
 var al_lsize = new Array(num_arealight);
 var al_le = new Array(num_arealight);

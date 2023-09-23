@@ -1379,15 +1379,15 @@
     <script src="shader_js/drawaltex_shader.js"></script>
 
     <script type="module">
-      import * as THREE from 'three';
-      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-      import { DragControls } from 'three/addons/controls/DragControls.js';
-      import WebGL from 'three/addons/capabilities/WebGL.js';
-      import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-      import Stats from 'three/addons/libs/stats.module.js';
-      import { Vector3 } from 'three';
-      import { StereoEffect } from 'three/addons/effects/StereoEffect.js';
+      import * as THREE from 'https://unpkg.com/three@0.148.0/build/three.module.js';
+      import { GLTFLoader } from 'https://unpkg.com/three@0.148.0/examples/jsm/loaders/GLTFLoader.js';
+      import { OrbitControls } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/OrbitControls.js';
+      import { DragControls  } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/DragControls.js';
+      import WebGL from 'https://unpkg.com/three@0.148.0/examples/jsm/capabilities/WebGL.js';
+      import { GUI } from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/lil-gui.module.min.js';
+      import Stats from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/stats.module.js';
+      import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
+      import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
       
       if (WebGL.isWebGLAvailable() === false)
         document.body.appendChild(WebGL.getWebGLErrorMessage());

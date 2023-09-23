@@ -37,8 +37,8 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "./node_modules/three/build/three.module.js",
-          "three/addons/": "./node_modules/three/examples/jsm/"
+          "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm"
           }
       }
     </script>
@@ -624,8 +624,8 @@
        #define OFFSET 0.02
        #define SCALEFACTOR 1.11
        #define ALPHA 0.06
-       #define MAX_LIGHT 8 //12  // 16 will be too slow
-       #define N_Tex 4
+       #define MAX_LIGHT 16 //8 //12  // 16 will be too slow
+       #define N_Tex 8 //4
        #define N_omni 4
 
        precision highp sampler2DArray;
@@ -703,14 +703,22 @@
           return textureLod(mlenv_dpmap[3], vec3(tc, layer0), ml);
          if(idx==7)
           return textureLod(mlenv_dpmap[3], vec3(tc, layer0+10), ml);
-         /*if(idx==8)
+         if(idx==8)
           return textureLod(mlenv_dpmap[4], vec3(tc, layer0), ml);
          if(idx==9)
           return textureLod(mlenv_dpmap[4], vec3(tc, layer0+10), ml);
          if(idx==10)
           return textureLod(mlenv_dpmap[5], vec3(tc, layer0), ml);
          if(idx==11)
-          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml); */
+          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml); 
+         if(idx==12)
+          return textureLod(mlenv_dpmap[6], vec3(tc, layer0), ml);
+         if(idx==13)
+          return textureLod(mlenv_dpmap[6], vec3(tc, layer0+10), ml); 
+         if(idx==14)
+          return textureLod(mlenv_dpmap[7], vec3(tc, layer0), ml);
+         if(idx==15)
+          return textureLod(mlenv_dpmap[7], vec3(tc, layer0+10), ml); 
        }
 
        vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
@@ -845,7 +853,8 @@
             acc0 += le*attenuation*diffuse* vb;
          }
          //gl_FragColor= vec4(acc*0.0007, 1.0);  //light source distance = 1, 0.0002
-         vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
+         //vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
+         vec3 col = vec3(acc0)*0.0003 + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
          gl_FragColor.xyz = vec3(col);
          gl_FragColor.w = 1.0;
        }
@@ -974,8 +983,8 @@
      <script id="csm_alenv_shader_fs" type="x-shader/x-fragment">
         #define PI 3.14159265358979
         #define M 4
-        //#define AL_SIZE 16
-        #define AL_SIZE 8
+        #define AL_SIZE 16
+        //#define AL_SIZE 8
         #define Omni_SIZE 4
         #define OmniTex_SIZE 2
         #define fCSMBias 0.068
@@ -1042,7 +1051,7 @@
            return textureLod(almap_arr[6], vec3(tc, layer0), ml);
           if(idx==7)
            return textureLod(almap_arr[7], vec3(tc, layer0), ml);
-          /*if(idx==8)
+          if(idx==8)
            return textureLod(almap_arr[8], vec3(tc, layer0), ml);
           if(idx==9)
            return textureLod(almap_arr[9], vec3(tc, layer0), ml);
@@ -1057,7 +1066,7 @@
           if(idx==14)
            return textureLod(almap_arr[14], vec3(tc, layer0), ml);
           if(idx==15)
-           return textureLod(almap_arr[15], vec3(tc, layer0), ml);    */
+           return textureLod(almap_arr[15], vec3(tc, layer0), ml);    /**/
         }
 
         vec4 f4mipmapALMAP(int _lidx, int layer0, vec2 tc, float fs)
@@ -1203,7 +1212,8 @@
           float acc1= 0.0;
           //gl_FragColor= vec4(acc*0.0008, 1.0)*1.6; // for litfar = 3
           //gl_FragColor= vec4(acc*0.003, 1.0);    //for litfar = 4.4
-          vec3 col = vec3(acc)*0.0008*1.6 + vec3(acc1)*j_scale/float(Omni_SIZE); // j_scale = 0.3362
+          //vec3 col = vec3(acc)*0.0008*1.6 + vec3(acc1)*j_scale/float(Omni_SIZE); // j_scale = 0.3362, light = 8
+          vec3 col = vec3(acc)*0.0003*1.6*1.16; // j_scale = 0.3362 light = 16
           gl_FragColor.xyz = vec3(col); 
           gl_FragColor.w = 1.0;
         }
@@ -1223,7 +1233,7 @@
     <script src="g_shader.js"></script>
     <script src="shader_js/drawtex_shader.js"></script>
     <script src="shader_js/drawcmtex_shader.js"></script>
-   <script src="shader_js/genbasis_shader_cm.js"></script>
+    <script src="shader_js/genbasis_shader_cm.js"></script>
     <!--multiple light basis shader-->
     <script src="shader_js/genbasis_shader_mldp.js"></script>
     <script src="shader_js/genbasis_shader_mldps.js"></script>
@@ -1234,16 +1244,16 @@
     <script src="shader_js/drawaltex_shader.js"></script>
 
     <script type="module">
-      import * as THREE from 'three';
-      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-      import { DragControls } from 'three/addons/controls/DragControls.js';
-      import WebGL from 'three/addons/capabilities/WebGL.js';
-      import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-      import Stats from 'three/addons/libs/stats.module.js';
-      import { Vector3 } from 'three';
-      import { StereoEffect } from 'three/addons/effects/StereoEffect.js';
-
+      import * as THREE from 'https://unpkg.com/three@0.148.0/build/three.module.js';
+      import { GLTFLoader } from 'https://unpkg.com/three@0.148.0/examples/jsm/loaders/GLTFLoader.js';
+      import { OrbitControls } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/OrbitControls.js';
+      import { DragControls  } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/DragControls.js';
+      import WebGL from 'https://unpkg.com/three@0.148.0/examples/jsm/capabilities/WebGL.js';
+      import { GUI } from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/lil-gui.module.min.js';
+      import Stats from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/stats.module.js';
+      import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
+      import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
+      
       if (WebGL.isWebGLAvailable() === false)
         document.body.appendChild(WebGL.getWebGLErrorMessage());
       document.onselectstart = new Function('return false;');
@@ -1323,7 +1333,8 @@
       var mlcm_camera, mlcm_face_mat, mlcm_Screen, mltexcm_rt, mltexcm;
 
       //DP Env. map approximation
-      var NENV_light = 8;//16
+     // var NENV_light = 8;//16
+      var NENV_light = 16;//16
 
       var env_light = new Array();
       var tmplpos = new Array(NENV_light);
@@ -1336,8 +1347,8 @@
       var mlenv_texdp_rt_s_id, mlenv_texdp_s_id;  //draw_texture indeed stores the depth map and basis maps.
 
       //Annen env. map approximation
-      var num_arealight = 8;
-      //var num_arealight = 16;
+      //var num_arealight = 8;
+      var num_arealight = 16;
       var my_arealight = new Array();
       var al_lpos = new Array(num_arealight);
       var al_lsize = new Array(num_arealight);
@@ -1368,7 +1379,7 @@
         stats = new Stats();
 
         renderer = new THREE.WebGLRenderer({ canvas: canvas, context: gl });
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(1);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.autoClear = false;
 
@@ -1387,40 +1398,108 @@
           tmple[i] = new THREE.Vector3(1.0, 1.0, 1.0);
         }
 
-        // 8 omni. light sources for env. map lighting
-        tmplpos[0] = new THREE.Vector3(2.000000, 0.000000, 0.000000);
-        tmpzFar[0] = 3.316625;
-        tmpls[0] = 0.202000;
-        tmple[0] = new THREE.Vector3(653.766846, 500.968536, 463.145081);
-        tmplpos[1] = new THREE.Vector3(-2.000000, 0.000000, 0.000000);
-        tmpzFar[1] = 3.316625;
-        tmpls[1] = 0.202000;
-        tmple[1] = new THREE.Vector3(435.257538, 358.090302, 370.116486);
-        tmplpos[2] = new THREE.Vector3(0.048196, 1.927851, 0.530159);
-        tmpzFar[2] = 3.465893;
-        tmpls[2] = 0.075000;
-        tmple[2] = new THREE.Vector3(1013.427795, 751.373474, 561.850891);
-        tmplpos[3] = new THREE.Vector3(0.077080, 1.541600, 1.271820);
-        tmpzFar[3] = 3.575052;
-        tmpls[3] = 0.075000;
-        tmple[3] = new THREE.Vector3(934.985596, 643.564941, 473.207184);
-        tmplpos[4] = new THREE.Vector3(0.000000, 2.000000, 0.000000);
-        tmpzFar[4] = 3.316625;
-        tmpls[4] = 0.202000;
-        tmple[4] = new THREE.Vector3(1049.918091, 744.753113, 594.493042);
-        tmplpos[5] = new THREE.Vector3(0.000000, -2.000000, 0.000000);
-        tmpzFar[5] = 3.316625;
-        tmpls[5] = 0.202000;
-        tmple[5] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
-        tmplpos[6] = new THREE.Vector3(0.000000, 0.000000, 2.000000);
-        tmpzFar[6] = 3.316625;
-        tmpls[6] = 0.202000;
-        tmple[6] = new THREE.Vector3(459.423737, 310.439880, 262.451355);
-        tmplpos[7] = new THREE.Vector3(0.000000, 0.000000, -2.000000);
-        tmpzFar[7] = 3.316625;
-        tmpls[7] = 0.202000;
-        tmple[7] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
+        if (NENV_light == 8) {
+          // 8 omni. light sources for env. map lighting
+          tmplpos[0] = new THREE.Vector3(2.000000, 0.000000, 0.000000);
+          tmpzFar[0] = 3.316625;
+          tmpls[0] = 0.202000;
+          tmple[0] = new THREE.Vector3(653.766846, 500.968536, 463.145081);
+          tmplpos[1] = new THREE.Vector3(-2.000000, 0.000000, 0.000000);
+          tmpzFar[1] = 3.316625;
+          tmpls[1] = 0.202000;
+          tmple[1] = new THREE.Vector3(435.257538, 358.090302, 370.116486);
+          tmplpos[2] = new THREE.Vector3(0.048196, 1.927851, 0.530159);
+          tmpzFar[2] = 3.465893;
+          tmpls[2] = 0.075000;
+          tmple[2] = new THREE.Vector3(1013.427795, 751.373474, 561.850891);
+          tmplpos[3] = new THREE.Vector3(0.077080, 1.541600, 1.271820);
+          tmpzFar[3] = 3.575052;
+          tmpls[3] = 0.075000;
+          tmple[3] = new THREE.Vector3(934.985596, 643.564941, 473.207184);
+          tmplpos[4] = new THREE.Vector3(0.000000, 2.000000, 0.000000);
+          tmpzFar[4] = 3.316625;
+          tmpls[4] = 0.202000;
+          tmple[4] = new THREE.Vector3(1049.918091, 744.753113, 594.493042);
+          tmplpos[5] = new THREE.Vector3(0.000000, -2.000000, 0.000000);
+          tmpzFar[5] = 3.316625;
+          tmpls[5] = 0.202000;
+          tmple[5] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
+          tmplpos[6] = new THREE.Vector3(0.000000, 0.000000, 2.000000);
+          tmpzFar[6] = 3.316625;
+          tmpls[6] = 0.202000;
+          tmple[6] = new THREE.Vector3(459.423737, 310.439880, 262.451355);
+          tmplpos[7] = new THREE.Vector3(0.000000, 0.000000, -2.000000);
+          tmpzFar[7] = 3.316625;
+          tmpls[7] = 0.202000;
+          tmple[7] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
+        } else
+        {
+          tmplpos[0] = new THREE.Vector3(1.731577, 0.930723, -0.367960);
+          tmpzFar[0] = 3.613934;
+          tmpls[0] = 0.062500;
+          tmple[0] = new THREE.Vector3(426.568085, 375.457275, 343.624756);
+          tmplpos[1] = new THREE.Vector3(2.000000, 0.000000, 0.000000);
+          tmpzFar[1] = 3.316625;
+          tmpls[1] = 0.202000;
+          tmple[1] = new THREE.Vector3(470.524536, 352.222137, 326.226166);
+          tmplpos[2] = new THREE.Vector3(-1.439165, 1.331228, -0.395770);
+          tmpzFar[2] = 3.651346;
+          tmpls[2] = 0.075000;
+          tmple[2] = new THREE.Vector3(237.708755, 210.868988, 176.271393);
+          tmplpos[3] = new THREE.Vector3(-2.000000, 0.000000, 0.000000);
+          tmpzFar[3] = 3.316625;
+          tmpls[3] = 0.202000;
+          tmple[3] = new THREE.Vector3(366.043304, 298.833801, 315.169556);
+          tmplpos[4] = new THREE.Vector3(0.048196, 1.927851, 0.530159);
+          tmpzFar[4] = 3.465893;
+          tmpls[4] = 0.050000;
+          tmple[4] = new THREE.Vector3(1015.175232, 754.998108, 563.614197);
+          tmplpos[5] = new THREE.Vector3(0.096900, 1.550405, 1.259704);
+          tmpzFar[5] = 3.579667;
+          tmpls[5] = 0.062500;
+          tmple[5] = new THREE.Vector3(936.379944, 644.872986, 472.351654);
+          tmplpos[6] = new THREE.Vector3(0.066026, 1.760689, 0.946370);
+          tmpzFar[6] = 3.542057;
+          tmpls[6] = 0.062500;
+          tmple[6] = new THREE.Vector3(662.596069, 432.765594, 293.235077);
+          tmplpos[7] = new THREE.Vector3(-0.932170, 1.694854, -0.508456);
+          tmpzFar[7] = 3.642933;
+          tmpls[7] = 0.050000;
+          tmple[7] = new THREE.Vector3(522.503662, 363.836609, 277.767700);
+          tmplpos[8] = new THREE.Vector3(0.972749, 1.655743, -0.558813);
+          tmpzFar[8] = 3.657132;
+          tmpls[8] = 0.062500;
+          tmple[8] = new THREE.Vector3(321.672516, 294.314056, 208.201035);
+          tmplpos[9] = new THREE.Vector3(1.216457, 1.520572, -0.456172);
+          tmpzFar[9] = 3.658743;
+          tmpls[9] = 0.100000;
+          tmple[9] = new THREE.Vector3(441.740173, 333.743805, 218.205460);
+          tmplpos[10] = new THREE.Vector3(0.000000, 2.000000, 0.000000);
+          tmpzFar[10] = 3.316625;
+          tmpls[10] = 0.202000;
+          tmple[10] = new THREE.Vector3(340.018829, 238.373047, 202.668304);
+          tmplpos[11] = new THREE.Vector3(0.000000, -2.000000, 0.000000);
+          tmpzFar[11] = 3.316625;
+          tmpls[11] = 0.202000;
+          tmple[11] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
+          tmplpos[12] = new THREE.Vector3(0.092237, 1.346666, 1.475799);
+          tmpzFar[12] = 3.581816;
+          tmpls[12] = 0.062500;
+          tmple[12] = new THREE.Vector3(317.720673, 229.898941, 171.150620);
+          tmplpos[13] = new THREE.Vector3(0.100473, 1.185585, 1.607574);
+          tmpzFar[13] = 3.575928;
+          tmpls[13] = 0.062500;
+          tmple[13] = new THREE.Vector3(228.309174, 162.203094, 119.334084);
+          tmplpos[14] = new THREE.Vector3(0.000000, 0.000000, 2.000000);
+          tmpzFar[14] = 3.316625;
+          tmpls[14] = 0.202000;
+          tmple[14] = new THREE.Vector3(237.703125, 158.103622, 138.044632);
+          tmplpos[15] = new THREE.Vector3(0.000000, 0.000000, -2.000000);
+          tmpzFar[15] = 3.316625;
+          tmpls[15] = 0.202000;
+          tmple[15] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
 
+        }
         //Annen area light
         if (num_arealight == 8) {
           //lit far = 3
@@ -1887,14 +1966,16 @@
               value: [
                 mlenv_texdp_rt_id[0].texture, mlenv_texdp_rt_id[1].texture, mlenv_texdp_rt_id[2].texture,
                 mlenv_texdp_rt_id[3].texture
-                //, mlenv_texdp_rt_id[4].texture, mlenv_texdp_rt_id[5].texture,
-                //mlenv_texdp_rt_id[6].texture, mlenv_texdp_rt_id[7].texture
+                , mlenv_texdp_rt_id[4].texture, mlenv_texdp_rt_id[5].texture,
+                mlenv_texdp_rt_id[6].texture, mlenv_texdp_rt_id[7].texture
               ]
             },
             lightmv: {
               value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
                 new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
                 //,new THREE.Matrix4(), new THREE.Matrix4(),new THREE.Matrix4(), new THREE.Matrix4()
+                ,new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
+                new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
               ]
             }
           },
@@ -1964,18 +2045,18 @@
                 altex_rt_id[0].texture, altex_rt_id[1].texture, altex_rt_id[2].texture,
                 altex_rt_id[3].texture, altex_rt_id[4].texture, altex_rt_id[5].texture,
                 altex_rt_id[6].texture, altex_rt_id[7].texture
-              //  ,
-              //  altex_rt_id[8].texture, altex_rt_id[9].texture, altex_rt_id[10].texture,
-              //  altex_rt_id[11].texture, altex_rt_id[12].texture, altex_rt_id[13].texture,
-              //  altex_rt_id[14].texture, altex_rt_id[15].texture, 
+                ,
+                altex_rt_id[8].texture, altex_rt_id[9].texture, altex_rt_id[10].texture,
+                altex_rt_id[11].texture, altex_rt_id[12].texture, altex_rt_id[13].texture,
+                altex_rt_id[14].texture, altex_rt_id[15].texture, 
               ]
             },
             lightmv: { //value: al_lmv
               value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
                 new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
-              //  ,
-              //new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
-              //new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
+                ,
+              new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
+              new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
               ]
             }
           },
@@ -3172,34 +3253,11 @@
             drawcmtex(mltexcm[draw_mlcmtex_id]);
         }
 
-        if (draw_mldptex_id >= 0 && draw_mlenvtex_id >= 8) {
-          if (maptype == 3)
-          {
-            var indeed_texid, indeed_layeridf, indeed_layeridb;
-            if (draw_mldptex_id == 0 || draw_mldptex_id == 1)
-              indeed_texid = 0;
-            if (draw_mldptex_id == 2 || draw_mldptex_id == 3)
-              indeed_texid = 1;
-
-            indeed_layeridf = draw_layer_idx < 1 ? draw_layer_idx : (draw_layer_idx + 1);
-            indeed_layeridb = draw_layer_idx < 1 ? 1 : (draw_layer_idx + 5);
-            if (draw_mldptex_id == 1 || draw_mldptex_id == 3) {
-              indeed_layeridf = indeed_layeridf + 10;
-              indeed_layeridb = indeed_layeridb + 10;
-            }
-            var draw_tex_matrix;
-            draw_tex_matrix = m4.orthographic(0, 4 * window.innerWidth / window.innerHeight, 0, 4, -1, 1);
-            draw_mldptex(altex_id_omni[indeed_texid], draw_tex_matrix, indeed_layeridf);
-
-            draw_tex_matrix = m4.orthographic(0, 4 * window.innerWidth / window.innerHeight, 0, 4, -1, 1);
-            draw_tex_matrix = m4.multiply(draw_tex_matrix, m4.translation(1, 0, 0));
-            draw_mldptex(altex_id_omni[indeed_texid], draw_tex_matrix, indeed_layeridb);
-          }
-        }
-
         if (draw_mlenvtex_id >= 0) {
           if (maptype == 2) {
 
+
+            console.log('draw_mlenvtex_id '+draw_mlenvtex_id + ''+ 'draw_mlenvtex_id/2' + draw_mlenvtex_id/2 );
             var indeed_texid, indeed_layeridf, indeed_layeridb;
             if (draw_mlenvtex_id == 0 || draw_mlenvtex_id == 1)
               indeed_texid = 0;
@@ -3213,12 +3271,16 @@
               indeed_texid = 4;
             if (draw_mlenvtex_id == 10 || draw_mlenvtex_id == 11)
               indeed_texid = 5;
+            if (draw_mlenvtex_id == 12 || draw_mlenvtex_id == 13)
+              indeed_texid = 6;
+            if (draw_mlenvtex_id == 14 || draw_mlenvtex_id == 15)
+              indeed_texid = 7;
 
             indeed_layeridf = draw_layer_idx < 1 ? draw_layer_idx : (draw_layer_idx + 1);
             indeed_layeridb = draw_layer_idx < 1 ? 1 : (draw_layer_idx + 5);
 
             if (draw_mlenvtex_id == 1 || draw_mlenvtex_id == 3 || draw_mlenvtex_id == 5 || draw_mlenvtex_id == 7
-              || draw_mlenvtex_id == 9 || draw_mlenvtex_id == 11) {
+              || draw_mlenvtex_id == 9 || draw_mlenvtex_id == 11 || draw_mlenvtex_id == 13 || draw_mlenvtex_id == 15) {
               indeed_layeridf = indeed_layeridf + 10;
               indeed_layeridb = indeed_layeridb + 10;
             }

@@ -303,7 +303,7 @@
         }
         return shadow;
       }
-
+      
       void main()
       {
         gl_FragColor = vec4(1.0); //texture(tex0, bt);
@@ -624,10 +624,9 @@
        #define OFFSET 0.02
        #define SCALEFACTOR 1.11
        #define ALPHA 0.06
-       #define MAX_LIGHT 12  // 16 will be too slow
-       #define N_Tex 6
-       #define N_env 4
-       #define N_omni 2
+       #define MAX_LIGHT 8 //12  // 16 will be too slow
+       #define N_Tex 4
+       #define N_omni 4
 
        precision highp sampler2DArray;
        precision mediump float;
@@ -704,14 +703,14 @@
           return textureLod(mlenv_dpmap[3], vec3(tc, layer0), ml);
          if(idx==7)
           return textureLod(mlenv_dpmap[3], vec3(tc, layer0+10), ml);
-         if(idx==8)
+         /*if(idx==8)
           return textureLod(mlenv_dpmap[4], vec3(tc, layer0), ml);
          if(idx==9)
           return textureLod(mlenv_dpmap[4], vec3(tc, layer0+10), ml);
          if(idx==10)
           return textureLod(mlenv_dpmap[5], vec3(tc, layer0), ml);
          if(idx==11)
-          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml);
+          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml); */
        }
 
        vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
@@ -843,13 +842,10 @@
            uv = -ldir*mat3(lmv);
 
            vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
-           if(j<8)
-             acc0 += le*attenuation*diffuse* vb;
-           else
-             acc1 += attenuation*diffuse*vb;
+            acc0 += le*attenuation*diffuse* vb;
          }
          //gl_FragColor= vec4(acc*0.0007, 1.0);  //light source distance = 1, 0.0002
-         vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_env); // j_scale = 0.3362
+         vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
          gl_FragColor.xyz = vec3(col);
          gl_FragColor.w = 1.0;
        }
@@ -1004,13 +1000,6 @@
         uniform sampler2DArray almap_arr[AL_SIZE];
         uniform vec3 le[AL_SIZE];
         uniform float scalefactor0;
-
-        uniform vec3 lc_omni[Omni_SIZE];
-        uniform float zFar_omni[Omni_SIZE];
-        uniform float lsize_omni[Omni_SIZE];
-        uniform sampler2DArray omnimap_arr[OmniTex_SIZE];
-        uniform mat4 lightmv_omni[Omni_SIZE];
-        uniform float zNear;
 
         uniform int lidx;
         uniform float j_scale;
@@ -1169,119 +1158,6 @@
           return shadow;
         }
 
-        float ufunc( float zval, float fs )
-        {
-          vec2 p = vec2(sqrt(1.0-zval*zval), abs(zval));
-          vec2 t = vec2(2.0*fs , 1.0-fs*fs)/(1.0+fs*fs);
-          return max(p.x/(1.0+p.y) - (p.x*t.y-p.y*t.x)/(1.0+dot(p,t)), fs);
-        }
-
-       vec4 getTexValOmni(int idx, vec2 tc, int layer0, float ml)
-        { 
-          if(idx==0)
-           return textureLod(omnimap_arr[0], vec3(tc, layer0), ml);
-          if(idx==1)
-           return textureLod(omnimap_arr[0], vec3(tc, layer0+10), ml);
-          if(idx==2)
-           return textureLod(omnimap_arr[1], vec3(tc, layer0), ml);
-          if(idx==3)
-           return textureLod(omnimap_arr[1], vec3(tc, layer0+10), ml);
-        }
-
-      vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
-      {
-        uv = normalize(uv);
-        fs=.74*ufunc(uv.z, fs);
-        float W0 = float(textureSize(omnimap_arr[0], 0).x);
-        float ml = log(W0*fs) / log(2.0);
-        vec2 tc = vec2(uv.x, uv.y) / (1.0 +uv.z);
-        vec2 coordf = vec2(-tc.x, tc.y) *.5+.5;
-        vec4 cfront= getTexValOmni(lidx, coordf.xy, layer0, ml);
-        tc = uv.xy / (1.0 -uv.z);
-        vec2 coordb = tc*.5 +.5;
-        vec4 cback = getTexValOmni(lidx, coordb.xy, layer1, ml);
-        // delete seams
-        float resolution = 1.0 / fs;
-        float sss = clamp((length(uv.xy)/(1.0 +abs(uv.z))-1.0)*resolution+1.0, 0.0, 1.0) * .5;
-        if(uv.z < 0.0)
-          sss = 1.0 -sss;
-        vec4 val = mix(cfront, cback, sss);
-        return val*2.0-1.0;
-      }
-        float CSSM_Z_Basis_omni( vec3 uv, float currentDepth, float filterwidth, int lidx
-        ){
-          vec4 tmp, sin_val_z, cos_val_z;
-          float sum0, sum1;
-          float depthvalue = f4mipmapMLENVDPMAP(lidx, 0, 1, uv, filterwidth).x;
-          sin_val_z = f4mipmapMLENVDPMAP(lidx, 5, 5+M, uv, filterwidth);
-          cos_val_z = f4mipmapMLENVDPMAP(lidx, 4, 4+M, uv, filterwidth);
-          tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
-          vec4 weights = getweights(ALPHA, 1.0, float(M));
-          sum0 = dot(sin(tmp*(currentDepth-fCSMBias)) / tmp, cos_val_z*weights);
-          sum1 = dot(cos(tmp*(currentDepth-fCSMBias)) / tmp, sin_val_z*weights);
-          return 0.5*depthvalue +2.0*(sum0 -sum1);
-        }
-
-        float CSSM_Basis_omni( vec3 uv, float currentDepth, float filterwidth, float supress_flag, int lidx )
-        {
-          vec4 tmp, sin_val, cos_val;
-          float sum0, sum1;
-
-          sin_val = f4mipmapMLENVDPMAP(lidx, 3, 3+M, uv, filterwidth);
-          cos_val = f4mipmapMLENVDPMAP(lidx, 2, 2+M, uv, filterwidth);
-
-          tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
-          vec4 weights = getweights(ALPHA, 1.0, float(M));
-
-          sum0 = dot(cos(tmp*(currentDepth -fCSMBias)) / tmp, sin_val*weights);
-          sum1 = dot(sin(tmp*(currentDepth -fCSMBias)) / tmp, cos_val*weights);
-
-          float rec = 0.5 +2.0*(sum0 - sum1);
-          if(supress_flag == 1.0)
-            rec = SCALEFACTOR*(rec -OFFSET);
-          return clamp((1.0*rec), 0.0, 1.0);
-        }
-
-      float FindBlockDepth_omni(
-        vec3 uv,  float currentDepth,  float distance, float lightsize,
-        int lidx, float zNear, float zFar
-      ){
-        float fs = estimatefwo(lightsize, distance, zNear);
-        fs = clamp(fs, 0.0, 2.0);
-        float blockedNum = 1.0 - CSSM_Basis_omni(uv, currentDepth, fs, 0.0, lidx);
-        if( blockedNum>0.001 )
-        {
-          float Z_avg;
-          Z_avg = CSSM_Z_Basis_omni(uv, currentDepth, fs, lidx) / blockedNum;
-          return Z_avg*zFar;
-        }
-        else
-          return distance+1.0;
-      }
-
-
-      float csm_pcf_filter_omni( vec3 uv, float currentDepth, float filterWidth, int lidx)
-      {
-        return CSSM_Basis_omni(uv, currentDepth, filterWidth, 1.0,lidx);
-      }
-
-      float CSM_SoftShadow_ML(
-        vec3 uv,  float distance,  float lightsize, float zNear, float zFar,
-        int lidx, float shadow_a, float shadow_b
-      ){
-        float currentDepth = distance/zFar;
-        float blockerdepth = FindBlockDepth_omni(uv, currentDepth, distance, lightsize, lidx, zNear, zFar);
-        float shadow = 1.0;
-        if( blockerdepth < distance )
-        {
-          float FilterWidth = estimatefwo(lightsize, distance, blockerdepth);
-          shadow = csm_pcf_filter_omni(uv, currentDepth, FilterWidth, lidx);
-          float temp = shadow_b*(blockerdepth - distance);
-          float power = 1.0 +shadow_a* exp(temp);
-          shadow = pow(shadow, power );
-        }
-        return shadow;
-      }
         void main()
         {
           gl_FragColor = vec4(1.0); //texture(tex0, bt);
@@ -1325,27 +1201,6 @@
           }
 
           float acc1= 0.0;
-          for(int j=0;j<Omni_SIZE; j++)
-          {
-            vec3 lpos, edir, ndir, ldir;
-            mat4 lmv;
-            float lightsize, zFar, ld, vb;
-              lightsize = lsize_omni[j];
-              zFar = zFar_omni[j];
-              lmv = lightmv_omni[j];
-
-            ndir = normalize(bn);
-            lpos = lc_omni[j]-bv;
-            ld = length(lpos);
-            ldir = lpos/ld;
-            edir = normalize( reflect( -(eye-bv), ndir) );
-            float diffuse  = max(dot(ldir, ndir), 0.0);
-            float specular = pow(max(dot(ldir,edir),0.0), 8.0*mix( 4.0, 1.0, lightsize/.2 )   );
-            float attenuation = 1.5 / (1.0 + mix( .5, .75, lightsize/.2 ) * ld*ld );
-            vec3 uv = -ldir*mat3(lmv);
-            vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
-            acc1 += attenuation*diffuse* vb;
-          }
           //gl_FragColor= vec4(acc*0.0008, 1.0)*1.6; // for litfar = 3
           //gl_FragColor= vec4(acc*0.003, 1.0);    //for litfar = 4.4
           vec3 col = vec3(acc)*0.0008*1.6 + vec3(acc1)*j_scale/float(Omni_SIZE); // j_scale = 0.3362
@@ -1379,16 +1234,16 @@
     <script src="shader_js/drawaltex_shader.js"></script>
 
     <script type="module">
-      import * as THREE from 'https://unpkg.com/three@0.148.0/build/three.module.js';
-      import { GLTFLoader } from 'https://unpkg.com/three@0.148.0/examples/jsm/loaders/GLTFLoader.js';
-      import { OrbitControls } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/OrbitControls.js';
-      import { DragControls  } from 'https://unpkg.com/three@0.148.0/examples/jsm/controls/DragControls.js';
-      import WebGL from 'https://unpkg.com/three@0.148.0/examples/jsm/capabilities/WebGL.js';
-      import { GUI } from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/lil-gui.module.min.js';
-      import Stats from 'https://unpkg.com/three@0.148.0/examples/jsm/libs/stats.module.js';
-      import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
-      import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
-      
+      import * as THREE from 'three';
+      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { DragControls } from 'three/addons/controls/DragControls.js';
+      import WebGL from 'three/addons/capabilities/WebGL.js';
+      import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+      import Stats from 'three/addons/libs/stats.module.js';
+      import { Vector3 } from 'three';
+      import { StereoEffect } from 'three/addons/effects/StereoEffect.js';
+
       if (WebGL.isWebGLAvailable() === false)
         document.body.appendChild(WebGL.getWebGLErrorMessage());
       document.onselectstart = new Function('return false;');
@@ -1444,6 +1299,7 @@
       var my_interval_id, face, num_of_display_robot = 1;
 
       var isAnimate = true;
+      //var useOmniLight = true;
 
       var my_dot;
       var lineA;
@@ -1466,11 +1322,8 @@
       var mlcm_fbo, mlcm_rbo;
       var mlcm_camera, mlcm_face_mat, mlcm_Screen, mltexcm_rt, mltexcm;
 
-      //env + omni light 
-      var N_omni_light = 4;
       //DP Env. map approximation
       var NENV_light = 8;//16
-      NENV_light = NENV_light + N_omni_light;
 
       var env_light = new Array();
       var tmplpos = new Array(NENV_light);
@@ -1498,17 +1351,6 @@
       var altex_rt_s_id, altex_s_id; // draw
       var al_scalefactor = 4.0 * Math.sqrt(3.0);     //12.0;// for litfar = 4.4
 
-      //al env+omni
-      var omni_light = new Array();
-      var allpos_omni = new Array(N_omni_light);
-      var alzFar_omni = new Array(N_omni_light);
-      var alls_omni = new Array(N_omni_light);
-      var allmv_omni = new Array(N_omni_light);
-
-      var al_fbo_omni, al_rbo_omni;
-      var al_cameraRTT_omni, al_RTT_omni, altex_rt_id_omni, altex_id_omni;
-      var altex_rt_s_id_omni, altex_s_id_omni; // draw
-
       var j_lidx = 0;
       var j_scalef = 0.3;//0.005;
 
@@ -1526,7 +1368,7 @@
         stats = new Stats();
 
         renderer = new THREE.WebGLRenderer({ canvas: canvas, context: gl });
-        renderer.setPixelRatio(1);
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.autoClear = false;
 
@@ -2045,14 +1887,14 @@
               value: [
                 mlenv_texdp_rt_id[0].texture, mlenv_texdp_rt_id[1].texture, mlenv_texdp_rt_id[2].texture,
                 mlenv_texdp_rt_id[3].texture
-                , mlenv_texdp_rt_id[4].texture, mlenv_texdp_rt_id[5].texture,
+                //, mlenv_texdp_rt_id[4].texture, mlenv_texdp_rt_id[5].texture,
                 //mlenv_texdp_rt_id[6].texture, mlenv_texdp_rt_id[7].texture
               ]
             },
             lightmv: {
               value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
                 new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
-                ,new THREE.Matrix4(), new THREE.Matrix4(),new THREE.Matrix4(), new THREE.Matrix4()
+                //,new THREE.Matrix4(), new THREE.Matrix4(),new THREE.Matrix4(), new THREE.Matrix4()
               ]
             }
           },
@@ -2066,51 +1908,6 @@
         //--------------------------------------------------------------------
         //multiple area light for env map - 2D texture
         //--------------------------------------------------------------------
-        // for omni light plus env
-        for (var i = 0; i < N_omni_light; i++) {
-          allpos_omni[i] = new THREE.Vector3();
-          alls_omni[i] = lightsize;
-          alzFar_omni[i] = zFar;
-          allmv_omni[i] = new THREE.Matrix4();
-        }
-
-        altex_rt_id_omni = new Array(N_omni_light/2);
-        altex_id_omni = new Array(N_omni_light / 2);
-
-        //for generate basis maps 
-        for (var i = 0; i < N_omni_light / 2; i++) {
-          altex_rt_id_omni[i] = new THREE.WebGLArrayRenderTarget(dp_side, dp_side, 2 * 2 * (M + 1));
-          altex_rt_id_omni[i].texture.format = THREE.RGBAFormat;
-          altex_rt_id_omni[i].texture.minFilter = THREE.LinearFilter;
-          altex_rt_id_omni[i].texture.magFilter = THREE.LinearFilter;
-
-          for (var j = 0; j <  2 *2 * (M + 1); j++)
-            renderer.setRenderTarget(altex_rt_id_omni[i], j);
-
-          altex_id_omni[i] = renderer.properties.get(altex_rt_id_omni[i].texture).__webglTexture;
-          altex_id_omni[i].needsUpdate = true;
-        }
-
-        //for generate depth map 
-        altex_rt_s_id_omni = new Array(N_omni_light * 2);
-        altex_s_id_omni = new Array(N_omni_light * 2);
-        for (i = 0; i < N_omni_light * 2; i++) {
-          altex_rt_s_id_omni[i] = new THREE.WebGLRenderTarget(dp_side, dp_side, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
-          renderer.setRenderTarget(altex_rt_s_id_omni[i]);
-          altex_s_id_omni[i] = renderer.properties.get(altex_rt_s_id_omni[i].texture).__webglTexture;
-        }
-
-        al_cameraRTT_omni = new THREE.OrthographicCamera(-100, 100, -100, 100, -100, 100);
-        al_RTT_omni = new THREE.ShaderMaterial({
-          uniforms: {
-            mvp: { value: new THREE.Matrix4() },
-            zFar: { value: Math.sqrt(12.0) },        //error
-            l: { value: new THREE.Vector3(0, 0, 0) }
-          },
-          vertexShader: document.getElementById('mldp_shader_vs').textContent,
-          fragmentShader: document.getElementById('mldp_shader_fs').textContent,
-        });
-
 
         //for env map
         altex_rt_id = new Array(num_arealight);
@@ -2180,13 +1977,7 @@
               //new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
               //new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
               ]
-            },
-            lc_omni: { value: allpos_omni },
-            zFar_omni: { value: alzFar_omni },
-            lsize_omni: { value: alls_omni },
-            zNear: {value: zNear},
-            lightmv_omni: { value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()] },
-            omnimap_arr: {value:[altex_rt_id_omni[0].texture, altex_rt_id_omni[1].texture]}
+            }
           },
           vertexShader: document.getElementById('csm_alenv_shader_vs').textContent,
           fragmentShader: document.getElementById('csm_alenv_shader_fs').textContent
@@ -2265,18 +2056,6 @@
           ml_light.push(tl);
           sceneScreen.add(tl);
           ml_lpos[i] = new THREE.Vector3(tl.position.x, tl.position.y, tl.position.z);
-        }
-
-        for (i = 0; i < N_omni_light; i++)
-        {
-          allpos_omni[i] = ml_lpos[i];
-        tmplpos[i + 8] = ml_lpos[i];
-          var geometry = new THREE.SphereGeometry(1, 20, 20);
-          var tmpe = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xDC143C }));
-          tmpe.position.set(ml_lpos[i].x, ml_lpos[j].y, ml_lpos[j].z);
-          tmpe.scale.set(lightsize, lightsize, lightsize);
-          omni_light.push(tmpe);
-          sceneScreen.add(tmpe);
         }
 
         // Add env map approximated light sources
@@ -2601,19 +2380,15 @@
             env_light[i].visible = false;   //true; //
         } else {
           for (var i = 0; i < NENV_light; i++)
-              env_light[i].visible = false;   
+            env_light[i].visible = false;   
         }
 
         if (maptype == 3) {
           for (var i = 0; i < num_arealight; i++) 
             my_arealight[i].visible = false;   //true; //
-          for (var i = 0; i < N_omni_light;i++)
-            omni_light[i].visible = false;
         } else {
           for (var i = 0; i < num_arealight; i++)
             my_arealight[i].visible = false;   //true; //
-          for (var i = 0; i < N_omni_light;i++)
-            omni_light[i].visible = false;
        }
 
         var nrobot = Math.min(num_of_display_robot, model.length);
@@ -2650,7 +2425,6 @@
 
       //annen area light env map
       prepare_alfbo(al_side);
-      prepare_alfbo_omni(dp_side);
       animate();
 
       //multiple light
@@ -2698,17 +2472,6 @@
         gl.bindRenderbuffer(gl.RENDERBUFFER, al_rbo);
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, al_side, al_side);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, al_rbo);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      }
-       function prepare_alfbo_omni(dp_side) {
-        al_fbo_omni = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, al_fbo_omni);
-
-        al_rbo_omni = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, al_rbo_omni);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, dp_side, dp_side);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, al_rbo_omni);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
@@ -3281,120 +3044,6 @@
         gl.viewport(port0[0], port0[1], port0[2], port0[3]);
       }
 
-      function alOmnidp_render(renderer) {
-        var i, j;
-        for (i = 0; i < N_omni_light; i++) {
-          allpos_omni[i] = new THREE.Vector3(omni_light[i].position.x, omni_light[i].position.y, omni_light[i].position.z);
-          alzFar_omni[i] = zFar;
-        }
-
-      for (j = 0; j < N_omni_light; j++) {
-        var eye = [new vec3(0.0, 0.0, -1.0), new vec3(0.0, 0.0, 1.0)];
-        var up = [(new vec3(0.0, 1.0, 0.0)).neg(), (new vec3(0.0, 1.0, 0.0)).neg()];
-
-        var l = new vec3(allpos_omni[j].x, allpos_omni[j].y, allpos_omni[j].z);
-        var mvp;
-        al_RTT_omni.uniforms["zFar"].value = alzFar_omni[j];
-        al_RTT_omni.uniforms["l"].value.set(l.x, l.y, l.z);
-
-        var prev_color = new THREE.Color();
-        renderer.getClearColor(prev_color);
-        var prev_apaha = renderer.getClearAlpha();
-        renderer.setClearColor(new THREE.Color(1, 1, 1), 1.0);
-        var prev_background = sceneScreen.background;
-        var prev_fog = sceneScreen.fog;
-        sceneScreen.background = null;
-        sceneScreen.fog = null;
-
-        sceneScreen.overrideMaterial = al_RTT_omni;
-        for (i = 0; i < 2; i++) {
-          mvp = m4.lookAt([l.x, l.y, l.z], [eye[i].x + l.x, eye[i].y + l.y, eye[i].z + l.z], [up[i].x, up[i].y, up[i].z]);
-          al_RTT_omni.uniforms["mvp"].value.set(
-            mvp[0], mvp[4], mvp[8], mvp[12],
-            mvp[1], mvp[5], mvp[9], mvp[13],
-            mvp[2], mvp[6], mvp[10], mvp[14],
-            mvp[3], mvp[7], mvp[11], mvp[15]);
-
-          renderer.setRenderTarget(altex_rt_s_id_omni[2 * j + i]);
-          renderer.clear();
-          renderer.render(sceneScreen, al_cameraRTT_omni);
-        }
-      }
-      sceneScreen.overrideMaterial = null;
-      sceneScreen.background = prev_background;
-      sceneScreen.fog = prev_fog;
-      renderer.setClearColor(prev_color, prev_apaha);
-    }
-      function genbasis_alOmni_dpmap() {
-        var i, j;
-        var fbo0 = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-        var port0 = gl.getParameter(gl.VIEWPORT);
-        var tex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-
-        var v0_enabled0 = gl.getVertexAttrib(genbasis_shader_mldps.v0, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
-        var t0_enabled0 = gl.getVertexAttrib(genbasis_shader_mldps.t0, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
-        gl.enableVertexAttribArray(genbasis_shader_mldps.v0);
-        gl.enableVertexAttribArray(genbasis_shader_mldps.t0);
-
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, al_fbo_omni);
-        gl.viewport(0, 0, dp_side, dp_side);
-
-        var n_tex = N_omni_light / 2;
-        for (j = 0; j < n_tex; j++) {
-          for (i = 0; i < 4; i++) {    // indeed  forloop four textures of two light, 0-1 for the first light, 2-3 for the second one
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, altex_s_id_omni[j * 4 + i]);
-
-            var k, q;
-            if (i == 0 || i == 1)
-              k = 0;
-            else
-              k = 1;
-            if (i == 0 || i == 2)
-              q = 0;
-            else
-              q = 1;
-            //console.log('i ' + i + ' k ' + k);
-            // for each mltexdp_id, it stores two lights' shadow maps
-            // 0-1 are the front and back of the first light, 2-9 are the basis maps
-            // 10-11 are the front and back of the second light, 12-19 are the basis map
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, altex_id_omni[j], 0, q + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT1, altex_id_omni[j], 0, q * M + 1 + 1 + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT2, altex_id_omni[j], 0, q * M + 1 + 2 + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT3, altex_id_omni[j], 0, q * M + 1 + 3 + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT4, altex_id_omni[j], 0, q * M + 1 + 4 + k * 10);
-
-            genbasis_shader_mldps.use();
-            gl.uniformMatrix4fv(genbasis_shader_mldps.mvp, false, m4.orthographic(0, 1, 0, 1, -1, 1));
-            gl.uniform1i(genbasis_shader_mldps.depthmap, 0);
-            gl.uniform1i(genbasis_shader_mldps.layeridx, i);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, my_quad_buffer);
-            gl.vertexAttribPointer(genbasis_shader_mldps.v0, 2, gl.FLOAT, false, 8, 0);
-            gl.vertexAttribPointer(genbasis_shader_mldps.t0, 2, gl.FLOAT, false, 8, 0);
-            gl.drawArrays(gl.TRIANGLES, 0, my_quad.n);
-            gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3, gl.COLOR_ATTACHMENT4]);
-
-          }
-        }
-        for (i = 0; i < n_tex; i++) {
-          gl.bindTexture(gl.TEXTURE_2D_ARRAY, altex_id_omni[i]);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
-        }
-
-        if (!v0_enabled0)
-          gl.disableVertexAttribArray(genbasis_shader_mldps.v0);
-        if (!t0_enabled0)
-          gl.disableVertexAttribArray(genbasis_shader_mldps.t0);
-
-        gl.bindTexture(gl.TEXTURE_2D, tex0);
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbo0);
-        gl.viewport(port0[0], port0[1], port0[2], port0[3]);
-      }
 
       function renderX(dt, time_scale, lineA) {
         {
@@ -3438,8 +3087,8 @@
         if (maptype == 3) {
           alenv_render(renderer);
           genbasis_alenv_map();
-          alOmnidp_render(renderer);
-          genbasis_alOmni_dpmap();
+        //  alOmnidp_render(renderer);
+        //  genbasis_alOmni_dpmap();
         }
 
         var l = new vec3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
@@ -3498,11 +3147,6 @@
             al_Screen.uniforms.le.value[i].set(al_le[i].x, al_le[i].y, al_le[i].z);
             al_Screen.uniforms.lightmv.value[i] = al_lmv[i];
           }
-          for (var i = 0; i < N_omni_light; i++) {
-            al_Screen.uniforms.lc_omni.value[i].set(allpos_omni[i].x, allpos_omni[i].y, allpos_omni[i].z);
-            al_Screen.uniforms.lsize_omni.value[i] = lightsize;
-            al_Screen.uniforms.zFar_omni.value[i] = zFar;
-            }
           al_Screen.uniforms["eye"].value = cameraScreen.position;
         }
 
@@ -3804,7 +3448,6 @@
         //fadeToAction( 'Running', 0.2 );
 
       }
-      
     </script>
 
 

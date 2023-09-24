@@ -2310,8 +2310,7 @@
           objects.push(my_arealight[i]);
         for (var i = 0; i < NENV_light; i++)
           objects.push(env_light[i]);
-        // for (var i = 0; i < N_omni_light; i++)
-        // objects.push(omni_light[i]);
+
         var dragControls = new DragControls(objects, cameraScreen, renderer.domElement);
         dragControls.addEventListener('dragstart', function () {
           cameraScreen_controls.enabled = false;
@@ -2427,7 +2426,7 @@
             screen_zmesh1.material = mlenvdp_Screen;
             screen_zmesh2.material = mlenvdp_Screen;
             screen_mesh.material = mlenvdp_Screen;
-            screen_mesh.scale.set(0.25, 0.25, 0.25);
+            screen_mesh.scale.set(0.5, 0.5, 0.5);
           }
 
           if (val == "Env. map approx. (Directional light)")
@@ -2436,7 +2435,7 @@
             screen_zmesh1.material = al_Screen;
             screen_zmesh2.material = al_Screen;
             screen_mesh.material   = al_Screen;
-            screen_mesh.scale.set(0.25, 0.25, 0.25);
+            screen_mesh.scale.set(0.5, 0.5, 0.5);
           }
         });
         map_select_Folder.open();
@@ -3118,8 +3117,8 @@
           var eye = [new vec3(0.0, 0.0, -1.0), new vec3(0.0, 0.0, 1.0)];
           var up = [(new vec3(0.0, 1.0, 0.0)).neg(), (new vec3(0.0, 1.0, 0.0)).neg()];
 
-          //var l = new vec3(tmplpos[j].x, tmplpos[j].y, tmplpos[j].z);
-          var l = new vec3(env_light[j].position.x, env_light[j].position.y, env_light[j].position.z);
+          var l = new vec3(tmplpos[j].x, tmplpos[j].y, tmplpos[j].z);
+          //var l = new vec3(env_light[j].position.x, env_light[j].position.y, env_light[j].position.z);
           //console.log('mlenvdp_render + l ' + l.x + ' ' + l.y + ' ' + l.z);
           var mvp;
           mlenvdp_RTT.uniforms["zFar"].value = tmpzFar[j];

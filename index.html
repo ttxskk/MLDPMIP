@@ -1527,7 +1527,7 @@
         stats = new Stats();
 
         renderer = new THREE.WebGLRenderer({ canvas: canvas, context: gl });
-        renderer.setPixelRatio(1);
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.autoClear = false;
 
@@ -3486,9 +3486,6 @@
             mlenvdp_Screen.uniforms.lsize.value[i] = tmpls[i];
             mlenvdp_Screen.uniforms.mlenvdp_zFar.value[i] = tmpzFar[i];
             mlenvdp_Screen.uniforms.light_intensity.value[i].set(tmple[i].x, tmple[i].y, tmple[i].z);
-          }
-          for (var i = 8; i < NENV_light; i++) {
-            mlenvdp_Screen.uniforms.lsize.value[i] = 0.2;
           }
           mlenvdp_Screen.uniforms["eye"].value = cameraScreen.position;
         }

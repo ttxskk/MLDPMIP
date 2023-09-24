@@ -2310,8 +2310,8 @@
           objects.push(my_arealight[i]);
         for (var i = 0; i < NENV_light; i++)
           objects.push(env_light[i]);
-        for (var i = 0; i < N_omni_light; i++)
-          objects.push(omni_light[i]);
+        // for (var i = 0; i < N_omni_light; i++)
+        // objects.push(omni_light[i]);
         var dragControls = new DragControls(objects, cameraScreen, renderer.domElement);
         dragControls.addEventListener('dragstart', function () {
           cameraScreen_controls.enabled = false;
@@ -2599,8 +2599,8 @@
             ml_light[i].visible = false;
         }
         if (maptype == 2) {
-          for (var i = 8; i < NENV_light; i++)
-            env_light[i].visible = true;   //true; //
+          for (var i = 0; i < NENV_light; i++)
+            env_light[i].visible = false;   //true; //
         } else {
           for (var i = 0; i < NENV_light; i++)
               env_light[i].visible = false;   
@@ -2610,7 +2610,7 @@
           for (var i = 0; i < num_arealight; i++) 
             my_arealight[i].visible = false;   //true; //
           for (var i = 0; i < N_omni_light;i++)
-            omni_light[i].visible = true;
+            omni_light[i].visible = false;
         } else {
           for (var i = 0; i < num_arealight; i++)
             my_arealight[i].visible = false;   //true; //
@@ -3489,7 +3489,7 @@
             mlenvdp_Screen.uniforms.light_intensity.value[i].set(tmple[i].x, tmple[i].y, tmple[i].z);
           }
           for (var i = 8; i < NENV_light; i++) {
-            mlenvdp_Screen.uniforms.lsize.value[i] = lightsize;
+            mlenvdp_Screen.uniforms.lsize.value[i] = 0.2;
           }
           mlenvdp_Screen.uniforms["eye"].value = cameraScreen.position;
         }

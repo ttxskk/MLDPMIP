@@ -303,7 +303,7 @@
         }
         return shadow;
       }
-
+      
       void main()
       {
         gl_FragColor = vec4(1.0); //texture(tex0, bt);
@@ -624,10 +624,9 @@
        #define OFFSET 0.02
        #define SCALEFACTOR 1.11
        #define ALPHA 0.06
-       #define MAX_LIGHT 12  // 16 will be too slow
-       #define N_Tex 6
-       #define N_env 4
-       #define N_omni 2
+       #define MAX_LIGHT 16 //8 //12  // 16 will be too slow
+       #define N_Tex 8 //4
+       #define N_omni 4
 
        precision highp sampler2DArray;
        precision mediump float;
@@ -648,7 +647,6 @@
        uniform mat4 lightmv[MAX_LIGHT];
        uniform vec3 light_intensity[MAX_LIGHT];
        uniform float j_scale;
-
        uniform float dis_scale0;
        uniform float ls_scale0;
 
@@ -714,7 +712,15 @@
          if(idx==10)
           return textureLod(mlenv_dpmap[5], vec3(tc, layer0), ml);
          if(idx==11)
-          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml);
+          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml); 
+         if(idx==12)
+          return textureLod(mlenv_dpmap[6], vec3(tc, layer0), ml);
+         if(idx==13)
+          return textureLod(mlenv_dpmap[6], vec3(tc, layer0+10), ml); 
+         if(idx==14)
+          return textureLod(mlenv_dpmap[7], vec3(tc, layer0), ml);
+         if(idx==15)
+          return textureLod(mlenv_dpmap[7], vec3(tc, layer0+10), ml); 
        }
 
        vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
@@ -843,25 +849,19 @@
 
            lmv = lightmv[j];
            zFar = mlenvdp_zFar[j];
-
-           if(j<8)
-           {
-            zFar = 1.0/dis_scale0;
-            lightsize = lightsize* ls_scale0;
-           }
-
-
            uv = -ldir*mat3(lmv);
 
+           zFar = 1.0/dis_scale0;
+          lightsize = lightsize* ls_scale0;
+
            vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
-           if(j<8)
-             acc0 += le*attenuation*diffuse* vb;
-           else
-             acc1 += attenuation*diffuse*vb;
+            acc0 += le*attenuation*diffuse* vb;
          }
          //gl_FragColor= vec4(acc*0.0007, 1.0);  //light source distance = 1, 0.0002
-         vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_env); // j_scale = 0.3362
-         gl_FragColor.xyz = vec3(col)*1.2;
+         //vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
+        // vec3 col = vec3(acc0)*0.0003 + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
+         vec3 col = vec3(acc0)*0.0003*j_scale;// + vec3(acc1)*j_scale/float(N_omni); // j_scale = 0.3362
+         gl_FragColor.xyz = vec3(col);
          gl_FragColor.w = 1.0;
        }
     </script>
@@ -902,7 +902,6 @@
       {
         //float depth = length(bc-l) / zFar;
         float depth = length(bc-l) * dis_scale0;
-        
         gl_FragColor = vec4(depth, 1.0, 1.0, 1.0);
         gl_FragColor = (gl_FragColor+1.0) /2.0;
       }
@@ -940,11 +939,9 @@
       uniform mat4 mvp;
       uniform mat4 uPerspectiveMatrix;
       uniform mat4 uViewMatrix;
-      //uniform float dis_scale0;
       out vec3 bv;
       out vec3 bn;
       out vec3 bc;
-      //out float dis0;
       void main()
       {
         vec4 hv = modelMatrix * vec4( position, 1.0 );
@@ -952,7 +949,6 @@
         bn = mat3(modelMatrix) * normal.xyz;
         gl_Position = mvp * modelMatrix *  vec4( position, 1.0 );
 
-        //dis0 = 0.3*dis_scale0;
         vec4 v0 = modelMatrix * vec4( position, 1.0 );
         v0 = v0/v0.w;
         bc = v0.xyz;
@@ -963,11 +959,9 @@
       in vec3 bv;
       in vec3 bn;
       in vec3 bc;
-      //in float dis0;
       uniform vec3 lc;
       uniform float scalefactor;
       uniform float dis_scale0;
-
       void main()
       {
         vec3 cv, cn;
@@ -976,7 +970,6 @@
         //float depth = (length(cv-lc) - length(lc))/scalefactor;// 150.0 ;//4.0/sqrt(3.0);
         //float depth = (length(cv-lc))/scalefactor;
         float depth = ((length(cv-lc))/scalefactor)*dis_scale0;
-        
         gl_FragColor = vec4(depth, 1.0, 1.0, 1.0);
         gl_FragColor = (gl_FragColor+1.0) /2.0;
       }
@@ -1000,8 +993,8 @@
      <script id="csm_alenv_shader_fs" type="x-shader/x-fragment">
         #define PI 3.14159265358979
         #define M 4
-        //#define AL_SIZE 16
-        #define AL_SIZE 8
+        #define AL_SIZE 16
+        //#define AL_SIZE 8
         #define Omni_SIZE 4
         #define OmniTex_SIZE 2
         #define fCSMBias 0.068
@@ -1027,18 +1020,10 @@
         uniform vec3 le[AL_SIZE];
         uniform float scalefactor0;
 
-        uniform float dis_scale0;
-        uniform float ls_scale0;
-
-        uniform vec3 lc_omni[Omni_SIZE];
-        uniform float zFar_omni[Omni_SIZE];
-        uniform float lsize_omni[Omni_SIZE];
-        uniform sampler2DArray omnimap_arr[OmniTex_SIZE];
-        uniform mat4 lightmv_omni[Omni_SIZE];
-        uniform float zNear;
-
         uniform int lidx;
         uniform float j_scale;
+        uniform float dis_scale0;
+        uniform float ls_scale0;
 
         float estimatefwo(float lightsize, float distance, float smpos)
         {
@@ -1078,7 +1063,7 @@
            return textureLod(almap_arr[6], vec3(tc, layer0), ml);
           if(idx==7)
            return textureLod(almap_arr[7], vec3(tc, layer0), ml);
-          /*if(idx==8)
+          if(idx==8)
            return textureLod(almap_arr[8], vec3(tc, layer0), ml);
           if(idx==9)
            return textureLod(almap_arr[9], vec3(tc, layer0), ml);
@@ -1093,7 +1078,7 @@
           if(idx==14)
            return textureLod(almap_arr[14], vec3(tc, layer0), ml);
           if(idx==15)
-           return textureLod(almap_arr[15], vec3(tc, layer0), ml);    */
+           return textureLod(almap_arr[15], vec3(tc, layer0), ml);    /**/
         }
 
         vec4 f4mipmapALMAP(int _lidx, int layer0, vec2 tc, float fs)
@@ -1194,119 +1179,6 @@
           return shadow;
         }
 
-        float ufunc( float zval, float fs )
-        {
-          vec2 p = vec2(sqrt(1.0-zval*zval), abs(zval));
-          vec2 t = vec2(2.0*fs , 1.0-fs*fs)/(1.0+fs*fs);
-          return max(p.x/(1.0+p.y) - (p.x*t.y-p.y*t.x)/(1.0+dot(p,t)), fs);
-        }
-
-       vec4 getTexValOmni(int idx, vec2 tc, int layer0, float ml)
-        { 
-          if(idx==0)
-           return textureLod(omnimap_arr[0], vec3(tc, layer0), ml);
-          if(idx==1)
-           return textureLod(omnimap_arr[0], vec3(tc, layer0+10), ml);
-          if(idx==2)
-           return textureLod(omnimap_arr[1], vec3(tc, layer0), ml);
-          if(idx==3)
-           return textureLod(omnimap_arr[1], vec3(tc, layer0+10), ml);
-        }
-
-      vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
-      {
-        uv = normalize(uv);
-        fs=.74*ufunc(uv.z, fs);
-        float W0 = float(textureSize(omnimap_arr[0], 0).x);
-        float ml = log(W0*fs) / log(2.0);
-        vec2 tc = vec2(uv.x, uv.y) / (1.0 +uv.z);
-        vec2 coordf = vec2(-tc.x, tc.y) *.5+.5;
-        vec4 cfront= getTexValOmni(lidx, coordf.xy, layer0, ml);
-        tc = uv.xy / (1.0 -uv.z);
-        vec2 coordb = tc*.5 +.5;
-        vec4 cback = getTexValOmni(lidx, coordb.xy, layer1, ml);
-        // delete seams
-        float resolution = 1.0 / fs;
-        float sss = clamp((length(uv.xy)/(1.0 +abs(uv.z))-1.0)*resolution+1.0, 0.0, 1.0) * .5;
-        if(uv.z < 0.0)
-          sss = 1.0 -sss;
-        vec4 val = mix(cfront, cback, sss);
-        return val*2.0-1.0;
-      }
-        float CSSM_Z_Basis_omni( vec3 uv, float currentDepth, float filterwidth, int lidx
-        ){
-          vec4 tmp, sin_val_z, cos_val_z;
-          float sum0, sum1;
-          float depthvalue = f4mipmapMLENVDPMAP(lidx, 0, 1, uv, filterwidth).x;
-          sin_val_z = f4mipmapMLENVDPMAP(lidx, 5, 5+M, uv, filterwidth);
-          cos_val_z = f4mipmapMLENVDPMAP(lidx, 4, 4+M, uv, filterwidth);
-          tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
-          vec4 weights = getweights(ALPHA, 1.0, float(M));
-          sum0 = dot(sin(tmp*(currentDepth-fCSMBias)) / tmp, cos_val_z*weights);
-          sum1 = dot(cos(tmp*(currentDepth-fCSMBias)) / tmp, sin_val_z*weights);
-          return 0.5*depthvalue +2.0*(sum0 -sum1);
-        }
-
-        float CSSM_Basis_omni( vec3 uv, float currentDepth, float filterwidth, float supress_flag, int lidx )
-        {
-          vec4 tmp, sin_val, cos_val;
-          float sum0, sum1;
-
-          sin_val = f4mipmapMLENVDPMAP(lidx, 3, 3+M, uv, filterwidth);
-          cos_val = f4mipmapMLENVDPMAP(lidx, 2, 2+M, uv, filterwidth);
-
-          tmp = PI*vec4(1.0, 3.0, 5.0, 7.0);
-          vec4 weights = getweights(ALPHA, 1.0, float(M));
-
-          sum0 = dot(cos(tmp*(currentDepth -fCSMBias)) / tmp, sin_val*weights);
-          sum1 = dot(sin(tmp*(currentDepth -fCSMBias)) / tmp, cos_val*weights);
-
-          float rec = 0.5 +2.0*(sum0 - sum1);
-          if(supress_flag == 1.0)
-            rec = SCALEFACTOR*(rec -OFFSET);
-          return clamp((1.0*rec), 0.0, 1.0);
-        }
-
-      float FindBlockDepth_omni(
-        vec3 uv,  float currentDepth,  float distance, float lightsize,
-        int lidx, float zNear, float zFar
-      ){
-        float fs = estimatefwo(lightsize, distance, zNear);
-        fs = clamp(fs, 0.0, 2.0);
-        float blockedNum = 1.0 - CSSM_Basis_omni(uv, currentDepth, fs, 0.0, lidx);
-        if( blockedNum>0.001 )
-        {
-          float Z_avg;
-          Z_avg = CSSM_Z_Basis_omni(uv, currentDepth, fs, lidx) / blockedNum;
-          return Z_avg*zFar;
-        }
-        else
-          return distance+1.0;
-      }
-
-
-      float csm_pcf_filter_omni( vec3 uv, float currentDepth, float filterWidth, int lidx)
-      {
-        return CSSM_Basis_omni(uv, currentDepth, filterWidth, 1.0,lidx);
-      }
-
-      float CSM_SoftShadow_ML(
-        vec3 uv,  float distance,  float lightsize, float zNear, float zFar,
-        int lidx, float shadow_a, float shadow_b
-      ){
-        float currentDepth = distance/zFar;
-        float blockerdepth = FindBlockDepth_omni(uv, currentDepth, distance, lightsize, lidx, zNear, zFar);
-        float shadow = 1.0;
-        if( blockerdepth < distance )
-        {
-          float FilterWidth = estimatefwo(lightsize, distance, blockerdepth);
-          shadow = csm_pcf_filter_omni(uv, currentDepth, FilterWidth, lidx);
-          float temp = shadow_b*(blockerdepth - distance);
-          float power = 1.0 +shadow_a* exp(temp);
-          shadow = pow(shadow, power );
-        }
-        return shadow;
-      }
         void main()
         {
           gl_FragColor = vec4(1.0); //texture(tex0, bt);
@@ -1315,7 +1187,6 @@
           vec3 cn = bn;
           vec3 acc = vec3(0.0);
           int li;
-
           for( li=0; li<AL_SIZE; li++ )                   //li=lidx;
           {
             float d0, vb, distance;
@@ -1330,8 +1201,7 @@
             distance = length(cv-lpos);
             //d0 = (length(cv-lpos)-length(lpos)) /scalefactor0; //current depth
             //d0 = (length(cv-lpos)) /scalefactor0;               //current depth
-            d0 = ((length(cv-lpos)) /scalefactor0)*dis_scale0;               //current depth
-                                       
+            d0 = ((length(cv-lpos)) /scalefactor0)*dis_scale0;
            vb = CSM_SoftShadow_al(
                     tc,        //lookup tex coordinate
                     d0,        //float currentDepth,
@@ -1352,30 +1222,10 @@
           }
 
           float acc1= 0.0;
-          for(int j=0;j<Omni_SIZE; j++)
-          {
-            vec3 lpos, edir, ndir, ldir;
-            mat4 lmv;
-            float lightsize, zFar, ld, vb;
-              lightsize = lsize_omni[j];
-              zFar = zFar_omni[j];
-              lmv = lightmv_omni[j];
-
-            ndir = normalize(bn);
-            lpos = lc_omni[j]-bv;
-            ld = length(lpos);
-            ldir = lpos/ld;
-            edir = normalize( reflect( -(eye-bv), ndir) );
-            float diffuse  = max(dot(ldir, ndir), 0.0);
-            float specular = pow(max(dot(ldir,edir),0.0), 8.0*mix( 4.0, 1.0, lightsize/.2 )   );
-            float attenuation = 1.5 / (1.0 + mix( .5, .75, lightsize/.2 ) * ld*ld );
-            vec3 uv = -ldir*mat3(lmv);
-            vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
-            acc1 += attenuation*diffuse* vb;
-          }
           //gl_FragColor= vec4(acc*0.0008, 1.0)*1.6; // for litfar = 3
           //gl_FragColor= vec4(acc*0.003, 1.0);    //for litfar = 4.4
-          vec3 col = vec3(acc)*0.0008*1.6 + vec3(acc1)*j_scale/float(Omni_SIZE); // j_scale = 0.3362
+          //vec3 col = vec3(acc)*0.0008*1.6 + vec3(acc1)*j_scale/float(Omni_SIZE); // j_scale = 0.3362, light = 8
+          vec3 col = vec3(acc)*0.0003* j_scale; // j_scale = 0.3362 light = 16
           gl_FragColor.xyz = vec3(col); 
           gl_FragColor.w = 1.0;
         }
@@ -1416,7 +1266,6 @@
       import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
       import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
       
-
       if (WebGL.isWebGLAvailable() === false)
         document.body.appendChild(WebGL.getWebGLErrorMessage());
       document.onselectstart = new Function('return false;');
@@ -1464,12 +1313,12 @@
       var draw_mlcmtex_id = 0;
       var draw_mlenvtex_id = 0;
 
+
       var aldis_scale0 = 1.0;
       var alls_scale0 = 1.0;
 
       var dpls_scale0 = 1.0;
       var dpdis_scale0 = 1.0;
-
 
 
       //var model;
@@ -1480,6 +1329,7 @@
       var my_interval_id, face, num_of_display_robot = 1;
 
       var isAnimate = true;
+      //var useOmniLight = true;
 
       var my_dot;
       var lineA;
@@ -1502,11 +1352,9 @@
       var mlcm_fbo, mlcm_rbo;
       var mlcm_camera, mlcm_face_mat, mlcm_Screen, mltexcm_rt, mltexcm;
 
-      //env + omni light 
-      var N_omni_light = 4;
       //DP Env. map approximation
-      var NENV_light = 8;//16
-      NENV_light = NENV_light + N_omni_light;
+     // var NENV_light = 8;//16
+      var NENV_light = 16;//16
 
       var env_light = new Array();
       var tmplpos = new Array(NENV_light);
@@ -1519,8 +1367,8 @@
       var mlenv_texdp_rt_s_id, mlenv_texdp_s_id;  //draw_texture indeed stores the depth map and basis maps.
 
       //Annen env. map approximation
-      var num_arealight = 8;
-      //var num_arealight = 16;
+      //var num_arealight = 8;
+      var num_arealight = 16;
       var my_arealight = new Array();
       var al_lpos = new Array(num_arealight);
       var al_lsize = new Array(num_arealight);
@@ -1532,18 +1380,7 @@
       var al_fbo, al_rbo;
       var al_cameraRTT, al_RTT, al_Screen, altex_rt_id, altex_id;
       var altex_rt_s_id, altex_s_id; // draw
-      var al_scalefactor = 1.0;// 4.0 * Math.sqrt(3.0);     //12.0;// for litfar = 4.4
-
-      //al env+omni
-      var omni_light = new Array();
-      var allpos_omni = new Array(N_omni_light);
-      var alzFar_omni = new Array(N_omni_light);
-      var alls_omni = new Array(N_omni_light);
-      var allmv_omni = new Array(N_omni_light);
-
-      var al_fbo_omni, al_rbo_omni;
-      var al_cameraRTT_omni, al_RTT_omni, altex_rt_id_omni, altex_id_omni;
-      var altex_rt_s_id_omni, altex_s_id_omni; // draw
+      var al_scalefactor = 4.0 * Math.sqrt(3.0);     //12.0;// for litfar = 4.4
 
       var j_lidx = 0;
       var j_scalef = 0.3;//0.005;
@@ -1562,7 +1399,7 @@
         stats = new Stats();
 
         renderer = new THREE.WebGLRenderer({ canvas: canvas, context: gl });
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(1.0);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.autoClear = false;
 
@@ -1581,40 +1418,108 @@
           tmple[i] = new THREE.Vector3(1.0, 1.0, 1.0);
         }
 
-        // 8 omni. light sources for env. map lighting
-        tmplpos[0] = new THREE.Vector3(2.000000, 0.000000, 0.000000);
-        tmpzFar[0] = 3.316625;
-        tmpls[0] = 0.202000;
-        tmple[0] = new THREE.Vector3(653.766846, 500.968536, 463.145081);
-        tmplpos[1] = new THREE.Vector3(-2.000000, 0.000000, 0.000000);
-        tmpzFar[1] = 3.316625;
-        tmpls[1] = 0.202000;
-        tmple[1] = new THREE.Vector3(435.257538, 358.090302, 370.116486);
-        tmplpos[2] = new THREE.Vector3(0.048196, 1.927851, 0.530159);
-        tmpzFar[2] = 3.465893;
-        tmpls[2] = 0.075000;
-        tmple[2] = new THREE.Vector3(1013.427795, 751.373474, 561.850891);
-        tmplpos[3] = new THREE.Vector3(0.077080, 1.541600, 1.271820);
-        tmpzFar[3] = 3.575052;
-        tmpls[3] = 0.075000;
-        tmple[3] = new THREE.Vector3(934.985596, 643.564941, 473.207184);
-        tmplpos[4] = new THREE.Vector3(0.000000, 2.000000, 0.000000);
-        tmpzFar[4] = 3.316625;
-        tmpls[4] = 0.202000;
-        tmple[4] = new THREE.Vector3(1049.918091, 744.753113, 594.493042);
-        tmplpos[5] = new THREE.Vector3(0.000000, -2.000000, 0.000000);
-        tmpzFar[5] = 3.316625;
-        tmpls[5] = 0.202000;
-        tmple[5] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
-        tmplpos[6] = new THREE.Vector3(0.000000, 0.000000, 2.000000);
-        tmpzFar[6] = 3.316625;
-        tmpls[6] = 0.202000;
-        tmple[6] = new THREE.Vector3(459.423737, 310.439880, 262.451355);
-        tmplpos[7] = new THREE.Vector3(0.000000, 0.000000, -2.000000);
-        tmpzFar[7] = 3.316625;
-        tmpls[7] = 0.202000;
-        tmple[7] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
+        if (NENV_light == 8) {
+          // 8 omni. light sources for env. map lighting
+          tmplpos[0] = new THREE.Vector3(2.000000, 0.000000, 0.000000);
+          tmpzFar[0] = 3.316625;
+          tmpls[0] = 0.202000;
+          tmple[0] = new THREE.Vector3(653.766846, 500.968536, 463.145081);
+          tmplpos[1] = new THREE.Vector3(-2.000000, 0.000000, 0.000000);
+          tmpzFar[1] = 3.316625;
+          tmpls[1] = 0.202000;
+          tmple[1] = new THREE.Vector3(435.257538, 358.090302, 370.116486);
+          tmplpos[2] = new THREE.Vector3(0.048196, 1.927851, 0.530159);
+          tmpzFar[2] = 3.465893;
+          tmpls[2] = 0.075000;
+          tmple[2] = new THREE.Vector3(1013.427795, 751.373474, 561.850891);
+          tmplpos[3] = new THREE.Vector3(0.077080, 1.541600, 1.271820);
+          tmpzFar[3] = 3.575052;
+          tmpls[3] = 0.075000;
+          tmple[3] = new THREE.Vector3(934.985596, 643.564941, 473.207184);
+          tmplpos[4] = new THREE.Vector3(0.000000, 2.000000, 0.000000);
+          tmpzFar[4] = 3.316625;
+          tmpls[4] = 0.202000;
+          tmple[4] = new THREE.Vector3(1049.918091, 744.753113, 594.493042);
+          tmplpos[5] = new THREE.Vector3(0.000000, -2.000000, 0.000000);
+          tmpzFar[5] = 3.316625;
+          tmpls[5] = 0.202000;
+          tmple[5] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
+          tmplpos[6] = new THREE.Vector3(0.000000, 0.000000, 2.000000);
+          tmpzFar[6] = 3.316625;
+          tmpls[6] = 0.202000;
+          tmple[6] = new THREE.Vector3(459.423737, 310.439880, 262.451355);
+          tmplpos[7] = new THREE.Vector3(0.000000, 0.000000, -2.000000);
+          tmpzFar[7] = 3.316625;
+          tmpls[7] = 0.202000;
+          tmple[7] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
+        } else
+        {
+          tmplpos[0] = new THREE.Vector3(1.731577, 0.930723, -0.367960);
+          tmpzFar[0] = 3.613934;
+          tmpls[0] = 0.062500;
+          tmple[0] = new THREE.Vector3(426.568085, 375.457275, 343.624756);
+          tmplpos[1] = new THREE.Vector3(2.000000, 0.000000, 0.000000);
+          tmpzFar[1] = 3.316625;
+          tmpls[1] = 0.202000;
+          tmple[1] = new THREE.Vector3(470.524536, 352.222137, 326.226166);
+          tmplpos[2] = new THREE.Vector3(-1.439165, 1.331228, -0.395770);
+          tmpzFar[2] = 3.651346;
+          tmpls[2] = 0.075000;
+          tmple[2] = new THREE.Vector3(237.708755, 210.868988, 176.271393);
+          tmplpos[3] = new THREE.Vector3(-2.000000, 0.000000, 0.000000);
+          tmpzFar[3] = 3.316625;
+          tmpls[3] = 0.202000;
+          tmple[3] = new THREE.Vector3(366.043304, 298.833801, 315.169556);
+          tmplpos[4] = new THREE.Vector3(0.048196, 1.927851, 0.530159);
+          tmpzFar[4] = 3.465893;
+          tmpls[4] = 0.050000;
+          tmple[4] = new THREE.Vector3(1015.175232, 754.998108, 563.614197);
+          tmplpos[5] = new THREE.Vector3(0.096900, 1.550405, 1.259704);
+          tmpzFar[5] = 3.579667;
+          tmpls[5] = 0.062500;
+          tmple[5] = new THREE.Vector3(936.379944, 644.872986, 472.351654);
+          tmplpos[6] = new THREE.Vector3(0.066026, 1.760689, 0.946370);
+          tmpzFar[6] = 3.542057;
+          tmpls[6] = 0.062500;
+          tmple[6] = new THREE.Vector3(662.596069, 432.765594, 293.235077);
+          tmplpos[7] = new THREE.Vector3(-0.932170, 1.694854, -0.508456);
+          tmpzFar[7] = 3.642933;
+          tmpls[7] = 0.050000;
+          tmple[7] = new THREE.Vector3(522.503662, 363.836609, 277.767700);
+          tmplpos[8] = new THREE.Vector3(0.972749, 1.655743, -0.558813);
+          tmpzFar[8] = 3.657132;
+          tmpls[8] = 0.062500;
+          tmple[8] = new THREE.Vector3(321.672516, 294.314056, 208.201035);
+          tmplpos[9] = new THREE.Vector3(1.216457, 1.520572, -0.456172);
+          tmpzFar[9] = 3.658743;
+          tmpls[9] = 0.100000;
+          tmple[9] = new THREE.Vector3(441.740173, 333.743805, 218.205460);
+          tmplpos[10] = new THREE.Vector3(0.000000, 2.000000, 0.000000);
+          tmpzFar[10] = 3.316625;
+          tmpls[10] = 0.202000;
+          tmple[10] = new THREE.Vector3(340.018829, 238.373047, 202.668304);
+          tmplpos[11] = new THREE.Vector3(0.000000, -2.000000, 0.000000);
+          tmpzFar[11] = 3.316625;
+          tmpls[11] = 0.202000;
+          tmple[11] = new THREE.Vector3(53.823242, 32.297832, 25.698626);
+          tmplpos[12] = new THREE.Vector3(0.092237, 1.346666, 1.475799);
+          tmpzFar[12] = 3.581816;
+          tmpls[12] = 0.062500;
+          tmple[12] = new THREE.Vector3(317.720673, 229.898941, 171.150620);
+          tmplpos[13] = new THREE.Vector3(0.100473, 1.185585, 1.607574);
+          tmpzFar[13] = 3.575928;
+          tmpls[13] = 0.062500;
+          tmple[13] = new THREE.Vector3(228.309174, 162.203094, 119.334084);
+          tmplpos[14] = new THREE.Vector3(0.000000, 0.000000, 2.000000);
+          tmpzFar[14] = 3.316625;
+          tmpls[14] = 0.202000;
+          tmple[14] = new THREE.Vector3(237.703125, 158.103622, 138.044632);
+          tmplpos[15] = new THREE.Vector3(0.000000, 0.000000, -2.000000);
+          tmpzFar[15] = 3.316625;
+          tmpls[15] = 0.202000;
+          tmple[15] = new THREE.Vector3(45.370766, 28.192625, 22.930178);
 
+        }
         //Annen area light
         if (num_arealight == 8) {
           //lit far = 3
@@ -2078,7 +1983,7 @@
             light_intensity: { value: tmple },
             mlenvdp_zFar: { value: tmpzFar },
             lsize: { value: tmpls },
-            j_scale: { value: j_scalef },
+            j_scale: {value: j_scalef},
             dis_scale0: { value: dpdis_scale0 },
             ls_scale0: { value: dpls_scale0 },
             mlenv_dpmap: {
@@ -2086,13 +1991,15 @@
                 mlenv_texdp_rt_id[0].texture, mlenv_texdp_rt_id[1].texture, mlenv_texdp_rt_id[2].texture,
                 mlenv_texdp_rt_id[3].texture
                 , mlenv_texdp_rt_id[4].texture, mlenv_texdp_rt_id[5].texture,
-                //mlenv_texdp_rt_id[6].texture, mlenv_texdp_rt_id[7].texture
+                mlenv_texdp_rt_id[6].texture, mlenv_texdp_rt_id[7].texture
               ]
             },
             lightmv: {
               value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
                 new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
-                ,new THREE.Matrix4(), new THREE.Matrix4(),new THREE.Matrix4(), new THREE.Matrix4()
+                //,new THREE.Matrix4(), new THREE.Matrix4(),new THREE.Matrix4(), new THREE.Matrix4()
+                ,new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
+                new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
               ]
             }
           },
@@ -2106,51 +2013,6 @@
         //--------------------------------------------------------------------
         //multiple area light for env map - 2D texture
         //--------------------------------------------------------------------
-        // for omni light plus env
-        for (var i = 0; i < N_omni_light; i++) {
-          allpos_omni[i] = new THREE.Vector3();
-          alls_omni[i] = lightsize;
-          alzFar_omni[i] = zFar;
-          allmv_omni[i] = new THREE.Matrix4();
-        }
-
-        altex_rt_id_omni = new Array(N_omni_light/2);
-        altex_id_omni = new Array(N_omni_light / 2);
-
-        //for generate basis maps 
-        for (var i = 0; i < N_omni_light / 2; i++) {
-          altex_rt_id_omni[i] = new THREE.WebGLArrayRenderTarget(dp_side, dp_side, 2 * 2 * (M + 1));
-          altex_rt_id_omni[i].texture.format = THREE.RGBAFormat;
-          altex_rt_id_omni[i].texture.minFilter = THREE.LinearFilter;
-          altex_rt_id_omni[i].texture.magFilter = THREE.LinearFilter;
-
-          for (var j = 0; j <  2 *2 * (M + 1); j++)
-            renderer.setRenderTarget(altex_rt_id_omni[i], j);
-
-          altex_id_omni[i] = renderer.properties.get(altex_rt_id_omni[i].texture).__webglTexture;
-          altex_id_omni[i].needsUpdate = true;
-        }
-
-        //for generate depth map 
-        altex_rt_s_id_omni = new Array(N_omni_light * 2);
-        altex_s_id_omni = new Array(N_omni_light * 2);
-        for (i = 0; i < N_omni_light * 2; i++) {
-          altex_rt_s_id_omni[i] = new THREE.WebGLRenderTarget(dp_side, dp_side, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
-          renderer.setRenderTarget(altex_rt_s_id_omni[i]);
-          altex_s_id_omni[i] = renderer.properties.get(altex_rt_s_id_omni[i].texture).__webglTexture;
-        }
-
-        al_cameraRTT_omni = new THREE.OrthographicCamera(-100, 100, -100, 100, -100, 100);
-        al_RTT_omni = new THREE.ShaderMaterial({
-          uniforms: {
-            mvp: { value: new THREE.Matrix4() },
-            zFar: { value: Math.sqrt(12.0) },        //error
-            l: { value: new THREE.Vector3(0, 0, 0) }
-          },
-          vertexShader: document.getElementById('mldp_shader_vs').textContent,
-          fragmentShader: document.getElementById('mldp_shader_fs').textContent,
-        });
-
 
         //for env map
         altex_rt_id = new Array(num_arealight);
@@ -2203,33 +2065,27 @@
             lightsize: { value: al_lsize },
             lc: { value: al_lpos },
             le: { value: al_le },
+            dis_scale0: { value: aldis_scale0 },
+            ls_scale0: {value: alls_scale0},
             almap_arr: {
               value: [
                 altex_rt_id[0].texture, altex_rt_id[1].texture, altex_rt_id[2].texture,
                 altex_rt_id[3].texture, altex_rt_id[4].texture, altex_rt_id[5].texture,
                 altex_rt_id[6].texture, altex_rt_id[7].texture
-              //  ,
-              //  altex_rt_id[8].texture, altex_rt_id[9].texture, altex_rt_id[10].texture,
-              //  altex_rt_id[11].texture, altex_rt_id[12].texture, altex_rt_id[13].texture,
-              //  altex_rt_id[14].texture, altex_rt_id[15].texture, 
+                ,
+                altex_rt_id[8].texture, altex_rt_id[9].texture, altex_rt_id[10].texture,
+                altex_rt_id[11].texture, altex_rt_id[12].texture, altex_rt_id[13].texture,
+                altex_rt_id[14].texture, altex_rt_id[15].texture, 
               ]
             },
             lightmv: { //value: al_lmv
               value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
                 new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
-              //  ,
-              //new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
-              //new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
+                ,
+              new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(),
+              new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()
               ]
-            },
-            lc_omni: { value: allpos_omni },
-            zFar_omni: { value: alzFar_omni },
-            lsize_omni: { value: alls_omni },
-            zNear: {value: zNear},
-            lightmv_omni: { value: [new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4(), new THREE.Matrix4()] },
-            omnimap_arr: { value: [altex_rt_id_omni[0].texture, altex_rt_id_omni[1].texture] },
-            dis_scale0: { value: aldis_scale0 },
-            ls_scale0: {value: alls_scale0}
+            }
           },
           vertexShader: document.getElementById('csm_alenv_shader_vs').textContent,
           fragmentShader: document.getElementById('csm_alenv_shader_fs').textContent
@@ -2256,8 +2112,8 @@
           screen_mesh = new THREE.Mesh(new THREE.PlaneGeometry(20, 20, 100, 100), mldp_Screen);
           screen_mesh.rotation.x = -Math.PI / 2;
 
-          //grid = new THREE.GridHelper(20, 100, 0xffffff, 0xffffff);
-          grid = new THREE.GridHelper(20, 100, 0x00ffff, 0x00ffff);
+          grid = new THREE.GridHelper(20, 100, 0xffffff, 0xffffff);
+          //grid.position.set(0, .002, 0);
           grid.position.set(0, 10, 0);
           grid.material.opacity = 0.2;//0.2;
           grid.material.transparent = true;
@@ -2309,18 +2165,6 @@
           ml_light.push(tl);
           sceneScreen.add(tl);
           ml_lpos[i] = new THREE.Vector3(tl.position.x, tl.position.y, tl.position.z);
-        }
-
-        for (i = 0; i < N_omni_light; i++)
-        {
-          allpos_omni[i] = ml_lpos[i];
-        tmplpos[i + 8] = ml_lpos[i];
-          var geometry = new THREE.SphereGeometry(1, 20, 20);
-          var tmpe = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xDC143C }));
-          tmpe.position.set(ml_lpos[i].x, ml_lpos[j].y, ml_lpos[j].z);
-          tmpe.scale.set(lightsize, lightsize, lightsize);
-          omni_light.push(tmpe);
-          sceneScreen.add(tmpe);
         }
 
         // Add env map approximated light sources
@@ -2469,7 +2313,7 @@
             screen_zmesh1.material = mlenvdp_Screen;
             screen_zmesh2.material = mlenvdp_Screen;
             screen_mesh.material = mlenvdp_Screen;
-            screen_mesh.scale.set(0.5, 0.5, 0.5);
+            screen_mesh.scale.set(0.25, 0.25, 0.25);
           }
 
           if (val == "Env. map approx. (Directional light)")
@@ -2478,7 +2322,7 @@
             screen_zmesh1.material = al_Screen;
             screen_zmesh2.material = al_Screen;
             screen_mesh.material   = al_Screen;
-            screen_mesh.scale.set(0.5, 0.5, 0.5);
+            screen_mesh.scale.set(0.25, 0.25, 0.25);
           }
         });
         map_select_Folder.open();
@@ -2500,7 +2344,7 @@
           'use vr': 0,
           'al fovy': Math.PI / 3.0,
           'light idx': 0,
-          'intensity scale': 0.05,
+          'intensity scale':0.05,
           'aldis scale0': 1.0,
           'alls scale0': 1.0,
           'dpls scale0': 1.0,
@@ -2609,7 +2453,7 @@
          function (val) {
            j_lidx = val;
          });
-       expressionFolder.add(settings, 'intensity scale', 0, 1, 0.0001).onChange(
+       expressionFolder.add(settings, 'intensity scale', 0, 10, 0.0001).onChange(
          function (val) {
             j_scalef= val;
          });
@@ -2669,19 +2513,15 @@
             env_light[i].visible = false;   //true; //
         } else {
           for (var i = 0; i < NENV_light; i++)
-              env_light[i].visible = false;   
+            env_light[i].visible = false;   
         }
 
         if (maptype == 3) {
           for (var i = 0; i < num_arealight; i++) 
             my_arealight[i].visible = false;   //true; //
-          for (var i = 0; i < N_omni_light;i++)
-            omni_light[i].visible = false;
         } else {
           for (var i = 0; i < num_arealight; i++)
             my_arealight[i].visible = false;   //true; //
-          for (var i = 0; i < N_omni_light;i++)
-            omni_light[i].visible = false;
        }
 
         var nrobot = Math.min(num_of_display_robot, model.length);
@@ -2718,7 +2558,6 @@
 
       //annen area light env map
       prepare_alfbo(al_side);
-      prepare_alfbo_omni(dp_side);
       animate();
 
       //multiple light
@@ -2766,17 +2605,6 @@
         gl.bindRenderbuffer(gl.RENDERBUFFER, al_rbo);
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, al_side, al_side);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, al_rbo);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      }
-       function prepare_alfbo_omni(dp_side) {
-        al_fbo_omni = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, al_fbo_omni);
-
-        al_rbo_omni = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, al_rbo_omni);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, dp_side, dp_side);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, al_rbo_omni);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
@@ -3190,11 +3018,7 @@
           var mvp;
           mlenvdp_RTT.uniforms["zFar"].value = tmpzFar[j];
           mlenvdp_RTT.uniforms["l"].value.set(l.x, l.y, l.z);
-
-          if (j < 8)
-            mlenvdp_RTT.uniforms.dis_scale0.value = dpdis_scale0;
-          else
-            mlenvdp_RTT.uniforms.dis_scale0.value = 1.0/tmpzFar[j];
+          mlenvdp_RTT.uniforms.dis_scale0.value = dpdis_scale0;
 
           var prev_color = new THREE.Color();
           renderer.getClearColor(prev_color);
@@ -3355,120 +3179,6 @@
         gl.viewport(port0[0], port0[1], port0[2], port0[3]);
       }
 
-      function alOmnidp_render(renderer) {
-        var i, j;
-        for (i = 0; i < N_omni_light; i++) {
-          allpos_omni[i] = new THREE.Vector3(omni_light[i].position.x, omni_light[i].position.y, omni_light[i].position.z);
-          alzFar_omni[i] = zFar;
-        }
-
-      for (j = 0; j < N_omni_light; j++) {
-        var eye = [new vec3(0.0, 0.0, -1.0), new vec3(0.0, 0.0, 1.0)];
-        var up = [(new vec3(0.0, 1.0, 0.0)).neg(), (new vec3(0.0, 1.0, 0.0)).neg()];
-
-        var l = new vec3(allpos_omni[j].x, allpos_omni[j].y, allpos_omni[j].z);
-        var mvp;
-        al_RTT_omni.uniforms["zFar"].value = alzFar_omni[j];
-        al_RTT_omni.uniforms["l"].value.set(l.x, l.y, l.z);
-
-        var prev_color = new THREE.Color();
-        renderer.getClearColor(prev_color);
-        var prev_apaha = renderer.getClearAlpha();
-        renderer.setClearColor(new THREE.Color(1, 1, 1), 1.0);
-        var prev_background = sceneScreen.background;
-        var prev_fog = sceneScreen.fog;
-        sceneScreen.background = null;
-        sceneScreen.fog = null;
-
-        sceneScreen.overrideMaterial = al_RTT_omni;
-        for (i = 0; i < 2; i++) {
-          mvp = m4.lookAt([l.x, l.y, l.z], [eye[i].x + l.x, eye[i].y + l.y, eye[i].z + l.z], [up[i].x, up[i].y, up[i].z]);
-          al_RTT_omni.uniforms["mvp"].value.set(
-            mvp[0], mvp[4], mvp[8], mvp[12],
-            mvp[1], mvp[5], mvp[9], mvp[13],
-            mvp[2], mvp[6], mvp[10], mvp[14],
-            mvp[3], mvp[7], mvp[11], mvp[15]);
-
-          renderer.setRenderTarget(altex_rt_s_id_omni[2 * j + i]);
-          renderer.clear();
-          renderer.render(sceneScreen, al_cameraRTT_omni);
-        }
-      }
-      sceneScreen.overrideMaterial = null;
-      sceneScreen.background = prev_background;
-      sceneScreen.fog = prev_fog;
-      renderer.setClearColor(prev_color, prev_apaha);
-    }
-      function genbasis_alOmni_dpmap() {
-        var i, j;
-        var fbo0 = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-        var port0 = gl.getParameter(gl.VIEWPORT);
-        var tex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-
-        var v0_enabled0 = gl.getVertexAttrib(genbasis_shader_mldps.v0, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
-        var t0_enabled0 = gl.getVertexAttrib(genbasis_shader_mldps.t0, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
-        gl.enableVertexAttribArray(genbasis_shader_mldps.v0);
-        gl.enableVertexAttribArray(genbasis_shader_mldps.t0);
-
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, al_fbo_omni);
-        gl.viewport(0, 0, dp_side, dp_side);
-
-        var n_tex = N_omni_light / 2;
-        for (j = 0; j < n_tex; j++) {
-          for (i = 0; i < 4; i++) {    // indeed  forloop four textures of two light, 0-1 for the first light, 2-3 for the second one
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, altex_s_id_omni[j * 4 + i]);
-
-            var k, q;
-            if (i == 0 || i == 1)
-              k = 0;
-            else
-              k = 1;
-            if (i == 0 || i == 2)
-              q = 0;
-            else
-              q = 1;
-            //console.log('i ' + i + ' k ' + k);
-            // for each mltexdp_id, it stores two lights' shadow maps
-            // 0-1 are the front and back of the first light, 2-9 are the basis maps
-            // 10-11 are the front and back of the second light, 12-19 are the basis map
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, altex_id_omni[j], 0, q + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT1, altex_id_omni[j], 0, q * M + 1 + 1 + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT2, altex_id_omni[j], 0, q * M + 1 + 2 + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT3, altex_id_omni[j], 0, q * M + 1 + 3 + k * 10);
-            gl.framebufferTextureLayer(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT4, altex_id_omni[j], 0, q * M + 1 + 4 + k * 10);
-
-            genbasis_shader_mldps.use();
-            gl.uniformMatrix4fv(genbasis_shader_mldps.mvp, false, m4.orthographic(0, 1, 0, 1, -1, 1));
-            gl.uniform1i(genbasis_shader_mldps.depthmap, 0);
-            gl.uniform1i(genbasis_shader_mldps.layeridx, i);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, my_quad_buffer);
-            gl.vertexAttribPointer(genbasis_shader_mldps.v0, 2, gl.FLOAT, false, 8, 0);
-            gl.vertexAttribPointer(genbasis_shader_mldps.t0, 2, gl.FLOAT, false, 8, 0);
-            gl.drawArrays(gl.TRIANGLES, 0, my_quad.n);
-            gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3, gl.COLOR_ATTACHMENT4]);
-
-          }
-        }
-        for (i = 0; i < n_tex; i++) {
-          gl.bindTexture(gl.TEXTURE_2D_ARRAY, altex_id_omni[i]);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-          gl.texParameterf(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
-        }
-
-        if (!v0_enabled0)
-          gl.disableVertexAttribArray(genbasis_shader_mldps.v0);
-        if (!t0_enabled0)
-          gl.disableVertexAttribArray(genbasis_shader_mldps.t0);
-
-        gl.bindTexture(gl.TEXTURE_2D, tex0);
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbo0);
-        gl.viewport(port0[0], port0[1], port0[2], port0[3]);
-      }
 
       function renderX(dt, time_scale, lineA) {
         {
@@ -3512,8 +3222,8 @@
         if (maptype == 3) {
           alenv_render(renderer);
           genbasis_alenv_map();
-          alOmnidp_render(renderer);
-          genbasis_alOmni_dpmap();
+        //  alOmnidp_render(renderer);
+        //  genbasis_alOmni_dpmap();
         }
 
         var l = new vec3(light_sphere.position.x, light_sphere.position.y, light_sphere.position.z);
@@ -3556,15 +3266,13 @@
           mlenvdp_Screen.uniforms.j_scale.value = j_scalef;
           mlenvdp_Screen.uniforms.dis_scale0.value = dpdis_scale0;
           mlenvdp_Screen.uniforms.ls_scale0.value = dpls_scale0;
-           
+
+
           for (var i = 0; i < NENV_light; i++) {
             mlenvdp_Screen.uniforms.l.value[i].set(tmplpos[i].x, tmplpos[i].y, tmplpos[i].z);
             mlenvdp_Screen.uniforms.lsize.value[i] = tmpls[i];
             mlenvdp_Screen.uniforms.mlenvdp_zFar.value[i] = tmpzFar[i];
             mlenvdp_Screen.uniforms.light_intensity.value[i].set(tmple[i].x, tmple[i].y, tmple[i].z);
-          }
-           for (var i = 8; i < NENV_light; i++) {
-            mlenvdp_Screen.uniforms.lsize.value[i] = lightsize;
           }
           mlenvdp_Screen.uniforms["eye"].value = cameraScreen.position;
         }
@@ -3574,18 +3282,13 @@
           al_Screen.uniforms.j_scale.value = j_scalef;
           al_Screen.uniforms.dis_scale0.value = aldis_scale0;
           al_Screen.uniforms.ls_scale0.value = alls_scale0;
-          
+
           for (var i = 0; i < num_arealight; i++) {
             al_Screen.uniforms.lc.value[i].set(al_lpos[i].x, al_lpos[i].y, al_lpos[i].z);
             al_Screen.uniforms.lightsize.value[i] = al_lsize[i];
             al_Screen.uniforms.le.value[i].set(al_le[i].x, al_le[i].y, al_le[i].z);
             al_Screen.uniforms.lightmv.value[i] = al_lmv[i];
           }
-          for (var i = 0; i < N_omni_light; i++) {
-            al_Screen.uniforms.lc_omni.value[i].set(allpos_omni[i].x, allpos_omni[i].y, allpos_omni[i].z);
-            al_Screen.uniforms.lsize_omni.value[i] = lightsize;
-            al_Screen.uniforms.zFar_omni.value[i] = zFar;
-            }
           al_Screen.uniforms["eye"].value = cameraScreen.position;
         }
 
@@ -3611,34 +3314,11 @@
             drawcmtex(mltexcm[draw_mlcmtex_id]);
         }
 
-        if (draw_mldptex_id >= 0 && draw_mlenvtex_id >= 8) {
-          if (maptype == 3)
-          {
-            var indeed_texid, indeed_layeridf, indeed_layeridb;
-            if (draw_mldptex_id == 0 || draw_mldptex_id == 1)
-              indeed_texid = 0;
-            if (draw_mldptex_id == 2 || draw_mldptex_id == 3)
-              indeed_texid = 1;
-
-            indeed_layeridf = draw_layer_idx < 1 ? draw_layer_idx : (draw_layer_idx + 1);
-            indeed_layeridb = draw_layer_idx < 1 ? 1 : (draw_layer_idx + 5);
-            if (draw_mldptex_id == 1 || draw_mldptex_id == 3) {
-              indeed_layeridf = indeed_layeridf + 10;
-              indeed_layeridb = indeed_layeridb + 10;
-            }
-            var draw_tex_matrix;
-            draw_tex_matrix = m4.orthographic(0, 4 * window.innerWidth / window.innerHeight, 0, 4, -1, 1);
-            draw_mldptex(altex_id_omni[indeed_texid], draw_tex_matrix, indeed_layeridf);
-
-            draw_tex_matrix = m4.orthographic(0, 4 * window.innerWidth / window.innerHeight, 0, 4, -1, 1);
-            draw_tex_matrix = m4.multiply(draw_tex_matrix, m4.translation(1, 0, 0));
-            draw_mldptex(altex_id_omni[indeed_texid], draw_tex_matrix, indeed_layeridb);
-          }
-        }
-
         if (draw_mlenvtex_id >= 0) {
           if (maptype == 2) {
 
+
+            //console.log('draw_mlenvtex_id '+draw_mlenvtex_id + ''+ 'draw_mlenvtex_id/2' + draw_mlenvtex_id/2 );
             var indeed_texid, indeed_layeridf, indeed_layeridb;
             if (draw_mlenvtex_id == 0 || draw_mlenvtex_id == 1)
               indeed_texid = 0;
@@ -3652,12 +3332,16 @@
               indeed_texid = 4;
             if (draw_mlenvtex_id == 10 || draw_mlenvtex_id == 11)
               indeed_texid = 5;
+            if (draw_mlenvtex_id == 12 || draw_mlenvtex_id == 13)
+              indeed_texid = 6;
+            if (draw_mlenvtex_id == 14 || draw_mlenvtex_id == 15)
+              indeed_texid = 7;
 
             indeed_layeridf = draw_layer_idx < 1 ? draw_layer_idx : (draw_layer_idx + 1);
             indeed_layeridb = draw_layer_idx < 1 ? 1 : (draw_layer_idx + 5);
 
             if (draw_mlenvtex_id == 1 || draw_mlenvtex_id == 3 || draw_mlenvtex_id == 5 || draw_mlenvtex_id == 7
-              || draw_mlenvtex_id == 9 || draw_mlenvtex_id == 11) {
+              || draw_mlenvtex_id == 9 || draw_mlenvtex_id == 11 || draw_mlenvtex_id == 13 || draw_mlenvtex_id == 15) {
               indeed_layeridf = indeed_layeridf + 10;
               indeed_layeridb = indeed_layeridb + 10;
             }

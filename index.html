@@ -1263,7 +1263,6 @@
       import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
       import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
       
-
       if (WebGL.isWebGLAvailable() === false)
         document.body.appendChild(WebGL.getWebGLErrorMessage());
       document.onselectstart = new Function('return false;');
@@ -1369,7 +1368,7 @@
       var al_fbo, al_rbo;
       var al_cameraRTT, al_RTT, al_Screen, altex_rt_id, altex_id;
       var altex_rt_s_id, altex_s_id; // draw
-      var al_scalefactor = 4.0 * Math.sqrt(3.0);//4.0 * Math.sqrt(3.0);     //12.0;// for litfar = 4.4
+      var al_scalefactor = 1.0;//4.0 * Math.sqrt(3.0);     //12.0;// for litfar = 4.4
 
       var j_lidx = 0;
       var j_scalef = 0.3;//0.005;
@@ -2240,7 +2239,7 @@
             screen_zmesh1.material = mlenvdp_Screen;
             screen_zmesh2.material = mlenvdp_Screen;
             screen_mesh.material = mlenvdp_Screen;
-            screen_mesh.scale.set(0.5, 0.5, 0.5);
+            screen_mesh.scale.set(0.25, 0.25, 0.25);
           }
 
           if (val == "Env. map approx. (Directional light)")
@@ -2249,7 +2248,7 @@
             screen_zmesh1.material = al_Screen;
             screen_zmesh2.material = al_Screen;
             screen_mesh.material   = al_Screen;
-            screen_mesh.scale.set(0.5, 0.5, 0.5);
+            screen_mesh.scale.set(0.25, 0.25, 0.25);
           }
         });
         map_select_Folder.open();
@@ -2380,7 +2379,7 @@
          function (val) {
            j_lidx = val;
          });
-       expressionFolder.add(settings, 'intensity scale', 0, 1, 0.0001).onChange(
+       expressionFolder.add(settings, 'intensity scale', 0, 10, 0.0001).onChange(
          function (val) {
             j_scalef= val;
          });

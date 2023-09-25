@@ -714,25 +714,7 @@
          if(idx==10)
           return textureLod(mlenv_dpmap[5], vec3(tc, layer0), ml);
          if(idx==11)
-          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml); 
-          return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml); 
-         if(idx==12)
-          return textureLod(mlenv_dpmap[6], vec3(tc, layer0), ml);
-         if(idx==13)
-          return textureLod(mlenv_dpmap[6], vec3(tc, layer0+10), ml); 
-         if(idx==14)
-          return textureLod(mlenv_dpmap[7], vec3(tc, layer0), ml);
-         if(idx==15)
-          return textureLod(mlenv_dpmap[7], vec3(tc, layer0+10), ml); 
           return textureLod(mlenv_dpmap[5], vec3(tc, layer0+10), ml);
-         if(idx==12)
-          return textureLod(mlenv_dpmap[6], vec3(tc, layer0), ml);
-         if(idx==13)
-          return textureLod(mlenv_dpmap[6], vec3(tc, layer0+10), ml); 
-         if(idx==14)
-          return textureLod(mlenv_dpmap[7], vec3(tc, layer0), ml);
-         if(idx==15)
-          return textureLod(mlenv_dpmap[7], vec3(tc, layer0+10), ml); 
        }
 
        vec4 f4mipmapMLENVDPMAP(int lidx, int layer0, int layer1, vec3 uv, float fs)
@@ -1434,6 +1416,7 @@
       import { Vector3 } from 'https://unpkg.com/three@0.148.0/build/three.module.js';
       import { StereoEffect } from 'https://unpkg.com/three@0.148.0/examples/jsm/effects/StereoEffect.js';
       
+
       if (WebGL.isWebGLAvailable() === false)
         document.body.appendChild(WebGL.getWebGLErrorMessage());
       document.onselectstart = new Function('return false;');

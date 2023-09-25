@@ -845,8 +845,8 @@
            uv = -ldir*mat3(lmv);
 
           zFar = 1.0/dis_scale0;
-          lightsize = lightsize* ls_scale0;
-
+          //lightsize = lightsize* ls_scale0;
+          lightsize = lightsize+ ls_scale0;
            vb = CSM_SoftShadow_ML(uv, ld, lightsize, zNear, zFar, j, shadow_a, shadow_b);
             acc0 += le*attenuation*diffuse* vb;
          }

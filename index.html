@@ -861,7 +861,7 @@
          }
          //gl_FragColor= vec4(acc*0.0007, 1.0);  //light source distance = 1, 0.0002
          vec3 col = vec3(acc0)*0.0007 + vec3(acc1)*j_scale/float(N_env); // j_scale = 0.3362
-         gl_FragColor.xyz = vec3(col);
+         gl_FragColor.xyz = vec3(col)*1.2;
          gl_FragColor.w = 1.0;
        }
     </script>
